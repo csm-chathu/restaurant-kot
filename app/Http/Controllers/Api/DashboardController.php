@@ -126,7 +126,7 @@ class DashboardController extends Controller
                 ->where('sales.status', 'completed')
                 ->where('sales.sold_at', '>=', $thisMonth)
                 ->when(!$user->isAdmin(), fn($q) => $q->where('products.branch_id', $user->branch_id))
-                ->groupBy('products.id', 'products.name')
+                ->groupBy('products.id', 'products.name', 'products.image')
                 ->orderByDesc('total_revenue')
                 ->take(6)
                 ->get(),

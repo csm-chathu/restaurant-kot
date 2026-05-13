@@ -1,0 +1,526 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\BottleDeposit;
+use App\Models\Customer;
+use App\Models\GoldRate;
+use App\Models\OpenBottle;
+use App\Models\Product;
+use App\Models\Sale;
+use App\Models\SaleItem;
+use App\Models\SalePayment;
+use App\Support\AccountingService;
+use App\Support\StockLedger;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+
+class SaleController extends Controller
+{
+    private const DEFAULT_BOTTLE_DEPOSIT = 100.0;
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $sales = Sale::with(['customer:id,name', 'user:id,name', 'payments:id,sale_id,payment_method,amount'])
+            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->when($request->filled('search'), fn($q) => $q->where('invoice_number', 'like', '%' . $request->string('search') . '%'))
+            ->when($request->filled('customer_id'), fn($q) => $q->where('customer_id', $request->input('customer_id')))
+            ->when($request->filled('status'), fn($q) => $q->where('status', $request->input('status')))
+            ->when($request->filled('payment_status'), fn($q) => $q->where('payment_status', $request->input('payment_status')))
+            ->when($request->filled('date_from'), fn($q) => $q->whereDate('sold_at', '>=', $request->input('date_from')))
+            ->when($request->filled('date_to'), fn($q) => $q->whereDate('sold_at', '<=', $request->input('date_to')))
+            ->latest('sold_at')
+            ->paginate($request->integer('per_page', 20));
+        return response()->json($sales);
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'customer_id'              => 'nullable|exists:customers,id',
+            'items'                    => 'required|array|min:1',
+            'items.*.product_id'       => 'required|exists:products,id',
+            'items.*.quantity'         => 'required|integer|min:1',
+            'items.*.unit_price'       => 'required|numeric|min:0',
+            'items.*.discount'         => 'nullable|numeric|min:0',
+            'items.*.empty_bottle_returned' => 'nullable|boolean',
+            'items.*.bottle_deposit_amount' => 'nullable|numeric|min:0',
+            'items.*.serving_ml'       => 'nullable|numeric|min:0',
+            'discount'                 => 'nullable|numeric|min:0',
+            'tax'                      => 'nullable|numeric|min:0',
+            'tax_rate'                 => 'nullable|numeric|min:0|max:100',
+            'payment_method'           => 'required_without:payments|in:cash,card,bank_transfer,cheque,other',
+            'payment_status'           => 'nullable|in:pending,paid,partial,refunded',
+            'amount_paid'              => 'nullable|numeric|min:0',
+            'payments'                 => 'nullable|array|min:1',
+            'payments.*.payment_method'=> 'required_with:payments|in:cash,card,bank_transfer,cheque,other',
+            'payments.*.amount'        => 'required_with:payments|numeric|min:0.01',
+            'payments.*.notes'         => 'nullable|string|max:255',
+            'status'                   => 'nullable|in:draft,completed',
+            'table_number'             => 'nullable|string|max:50',
+            'notes'                    => 'nullable|string',
+            'sold_at'                  => 'nullable|date',
+        ]);
+
+        $isDraft = ($data['status'] ?? 'completed') === 'draft';
+
+        DB::beginTransaction();
+        try {
+            $goldRate  = GoldRate::today();
+            $subtotal  = 0;
+            $goldTotal = 0; $gemTotal = 0; $mcTotal = 0; $wasteTotal = 0;
+
+            // Pre-validate items
+            $itemData = [];
+            foreach ($data['items'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+                if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
+                    throw new \Exception("Product not available for your branch: {$product->name}");
+                }
+                if ($product->stock_quantity < $item['quantity']) {
+                    throw new \Exception("Insufficient stock for: {$product->name}");
+                }
+
+                $qty         = $item['quantity'];
+                $unitPrice   = $item['unit_price'];
+                $itemDisc    = $item['discount'] ?? 0;
+
+                // Making charge
+                $mc = $item['making_charge'] ?? 0;
+                if ($mc == 0 && $product->making_charge > 0) {
+                    $mc = match($product->making_charge_type) {
+                        'per_gram'   => $product->making_charge * ($product->weight ?? 0) * $qty,
+                        'per_piece'  => $product->making_charge * $qty,
+                        'percentage' => ($unitPrice * $qty) * ($product->making_charge / 100),
+                        default      => 0,
+                    };
+                }
+
+                // Wastage
+                $wastage = $item['wastage_amount'] ?? 0;
+                if ($wastage == 0 && $product->wastage_percent > 0 && $product->weight) {
+                    $wastage = $goldRate
+                        ? $goldRate->rate_per_gram * ($product->weight * $product->wastage_percent / 100)
+                              * (GoldRate::$karatPurity[strtolower($product->karat ?? '24k')] ?? 1)
+                              * $qty
+                        : 0;
+                }
+
+                // Gold value from rate
+                $goldV = $item['gold_value'] ?? 0;
+                if ($goldV == 0 && $goldRate && $product->weight && $product->karat) {
+                    $purity = GoldRate::$karatPurity[strtolower($product->karat)] ?? 1;
+                    $goldV  = round($goldRate->rate_per_gram * $product->weight * $purity, 2) * $qty;
+                }
+
+                // Gemstone value
+                $gemV = $item['gemstone_value'] ?? ($product->gemstone_value * $qty);
+
+                $lineTotal = ($unitPrice * $qty) - $itemDisc;
+
+                $depositCollected = 0;
+                if ($product->bottle_deposit_required) {
+                    $returned = (bool) ($item['empty_bottle_returned'] ?? false);
+                    $depositAmount = (float) ($item['bottle_deposit_amount'] ?? self::DEFAULT_BOTTLE_DEPOSIT);
+                    if (!$returned && $depositAmount > 0) {
+                        $depositCollected = $depositAmount * $qty;
+                        $lineTotal += $depositCollected;
+                    }
+                }
+
+                $subtotal   += $lineTotal;
+                $goldTotal  += $goldV;
+                $gemTotal   += $gemV;
+                $mcTotal    += $mc;
+                $wasteTotal += $wastage;
+
+                $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal', 'goldV', 'gemV', 'mc', 'wastage', 'depositCollected', 'item');
+            }
+
+            $discount = $data['discount'] ?? 0;
+            $tax      = $data['tax'] ?? 0;
+            $total    = $subtotal - $discount + $tax;
+            $payments = $this->normalizePayments($data, $isDraft);
+            $amountPaid = $isDraft ? 0 : round((float) $payments->sum('amount'), 2);
+            $paymentStatus = $isDraft
+                ? 'pending'
+                : $this->resolvePaymentStatus($amountPaid, $total, $data['payment_status'] ?? null);
+            $paymentMethod = $this->resolvePaymentMethod($payments, $data['payment_method'] ?? 'cash');
+
+            if (!$request->user()->isAdmin() && !empty($data['customer_id'])) {
+                $customer = Customer::findOrFail($data['customer_id']);
+                if ($customer->branch_id !== $request->user()->branch_id) {
+                    throw new \Exception('Selected customer does not belong to your branch.');
+                }
+            }
+
+            $sale = Sale::create([
+                'branch_id'             => $request->user()->branch_id,
+                'invoice_number'        => 'INV-' . now()->format('Ymd') . '-' . str_pad(Sale::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
+                'customer_id'           => $data['customer_id'] ?? null,
+                'user_id'               => $request->user()->id,
+                'subtotal'              => $subtotal,
+                'discount'              => $discount,
+                'tax'                   => $tax,
+                'tax_rate'              => $data['tax_rate'] ?? 0,
+                'total'                 => $total,
+                'payment_method'        => $paymentMethod,
+                'payment_status'        => $paymentStatus,
+                'amount_paid'           => $amountPaid,
+                'status'                => $isDraft ? 'draft' : 'completed',
+                'table_number'          => $data['table_number'] ?? null,
+                'notes'                 => $data['notes'] ?? null,
+                'sold_at'               => !empty($data['sold_at']) ? Carbon::parse($data['sold_at']) : now(),
+            ]);
+
+            $this->syncPayments($sale, $payments);
+
+            foreach ($itemData as $i) {
+                SaleItem::create([
+                    'sale_id'        => $sale->id,
+                    'product_id'     => $i['product']->id,
+                    'quantity'       => $i['qty'],
+                    'unit_price'     => $i['unitPrice'],
+                    'discount'       => $i['itemDisc'],
+                    'serving_ml'     => (float) ($i['item']['serving_ml'] ?? 0),
+                    'total'          => $i['lineTotal'],
+                ]);
+
+                // Only process stock/deposits for completed sales, not drafts
+                if (!$isDraft) {
+                    $servingMl = (float) ($i['item']['serving_ml'] ?? 0);
+                    if ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
+                        $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
+                    } else {
+                        $i['product']->decrement('stock_quantity', $i['qty']);
+                        $i['product']->refresh();
+                        StockLedger::record(
+                            $i['product'],
+                            'OUT',
+                            (float) $i['qty'],
+                            $request->user()->id,
+                            $request->user()->branch_id,
+                            'SALE',
+                            $sale->id,
+                            'Stock reduced from sale',
+                            ['invoice_number' => $sale->invoice_number]
+                        );
+                    }
+
+                    if (($i['depositCollected'] ?? 0) > 0) {
+                        BottleDeposit::create([
+                            'branch_id' => $request->user()->branch_id,
+                            'sale_id' => $sale->id,
+                            'customer_id' => $sale->customer_id,
+                            'product_id' => $i['product']->id,
+                            'user_id' => $request->user()->id,
+                            'type' => 'collect',
+                            'status' => 'collected',
+                            'quantity' => $i['qty'],
+                            'amount_per_bottle' => (float) ($i['item']['bottle_deposit_amount'] ?? self::DEFAULT_BOTTLE_DEPOSIT),
+                            'total_amount' => $i['depositCollected'],
+                            'notes' => 'Auto-collected during sale',
+                            'processed_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            if (!$isDraft) {
+                AccountingService::postSale($sale->loadMissing('items.product'));
+            }
+
+            AuditLog::record('sale_created', "Sale {$sale->invoice_number} — LKR {$total}", $sale);
+
+            DB::commit();
+            return response()->json($sale->load(['items.product', 'customer', 'user', 'payments']), 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    private function handleOpenBottlePour(Request $request, Sale $sale, Product $product, float $servingMl): void
+    {
+        $openBottle = OpenBottle::where('product_id', $product->id)
+            ->where('branch_id', $request->user()->branch_id)
+            ->where('status', 'open')
+            ->where('remaining_volume_ml', '>=', $servingMl)
+            ->orderBy('opened_at')
+            ->first();
+
+        if (!$openBottle) {
+            if ($product->stock_quantity < 1) {
+                throw new \Exception("Insufficient stock for open bottle tracking: {$product->name}");
+            }
+
+            $openingVolume = $this->extractMlFromUnit($product->base_unit) ?: 750;
+            $product->decrement('stock_quantity', 1);
+            $product->refresh();
+
+            $openBottle = OpenBottle::create([
+                'branch_id' => $request->user()->branch_id,
+                'product_id' => $product->id,
+                'sale_id' => $sale->id,
+                'opened_by' => $request->user()->id,
+                'opening_volume_ml' => $openingVolume,
+                'remaining_volume_ml' => $openingVolume,
+                'status' => 'open',
+                'opened_at' => now(),
+                'notes' => 'Auto-opened from sale',
+            ]);
+
+            StockLedger::record(
+                $product,
+                'OPEN_BOTTLE',
+                1,
+                $request->user()->id,
+                $request->user()->branch_id,
+                'OPEN_BOTTLE',
+                $openBottle->id,
+                'Bottle opened from sale',
+                ['invoice_number' => $sale->invoice_number]
+            );
+        }
+
+        if ($openBottle->remaining_volume_ml < $servingMl) {
+            throw new \Exception("Not enough remaining volume in open bottle for: {$product->name}");
+        }
+
+        $openBottle->remaining_volume_ml -= $servingMl;
+        if ($openBottle->remaining_volume_ml <= 0) {
+            $openBottle->remaining_volume_ml = 0;
+            $openBottle->status = 'empty';
+            $openBottle->closed_at = now();
+        }
+        $openBottle->save();
+    }
+
+    private function extractMlFromUnit(?string $value): float
+    {
+        if (!$value) {
+            return 0;
+        }
+
+        if (preg_match('/([0-9]+(?:\.[0-9]+)?)\s*ml/i', $value, $matches)) {
+            return (float) $matches[1];
+        }
+
+        return 0;
+    }
+
+    public function show(Sale $sale)
+    {
+        $this->authorizeBranch($sale->branch_id);
+        return response()->json($sale->load(['items.product', 'customer', 'user', 'payments']));
+    }
+
+    private function normalizePayments(array $data, bool $isDraft): Collection
+    {
+        if ($isDraft) {
+            return collect();
+        }
+
+        if (!empty($data['payments'])) {
+            return collect($data['payments'])
+                ->map(fn(array $payment) => [
+                    'payment_method' => $payment['payment_method'],
+                    'amount' => round((float) $payment['amount'], 2),
+                    'notes' => $payment['notes'] ?? null,
+                ])
+                ->filter(fn(array $payment) => $payment['amount'] > 0)
+                ->values();
+        }
+
+        $amountPaid = round((float) ($data['amount_paid'] ?? 0), 2);
+        if ($amountPaid <= 0) {
+            return collect();
+        }
+
+        return collect([[
+            'payment_method' => $data['payment_method'] ?? 'cash',
+            'amount' => $amountPaid,
+            'notes' => null,
+        ]]);
+    }
+
+    private function resolvePaymentStatus(float $amountPaid, float $total, ?string $requestedStatus): string
+    {
+        if ($requestedStatus === 'refunded') {
+            return 'refunded';
+        }
+
+        if ($amountPaid <= 0) {
+            return 'pending';
+        }
+
+        if ($amountPaid + 0.009 < $total) {
+            return 'partial';
+        }
+
+        return 'paid';
+    }
+
+    private function resolvePaymentMethod(Collection $payments, string $fallbackMethod): string
+    {
+        if ($payments->isEmpty()) {
+            return $fallbackMethod;
+        }
+
+        $methods = $payments->pluck('payment_method')->unique()->values();
+
+        return $methods->count() === 1 ? $methods->first() : 'other';
+    }
+
+    private function syncPayments(Sale $sale, Collection $payments): void
+    {
+        $sale->payments()->delete();
+
+        if ($payments->isEmpty()) {
+            return;
+        }
+
+        $sale->payments()->createMany(
+            $payments->map(fn(array $payment) => [
+                'payment_method' => $payment['payment_method'],
+                'amount' => $payment['amount'],
+                'notes' => $payment['notes'] ?? null,
+            ])->all()
+        );
+    }
+
+    public function update(Request $request, Sale $sale)
+    {
+        $this->authorizeBranch($sale->branch_id);
+        
+        if ($sale->status !== 'draft') {
+            return response()->json(['message' => 'Only draft bills can be edited'], 422);
+        }
+
+        $data = $request->validate([
+            'customer_id'              => 'nullable|exists:customers,id',
+            'items'                    => 'required|array|min:1',
+            'items.*.product_id'       => 'required|exists:products,id',
+            'items.*.quantity'         => 'required|integer|min:1',
+            'items.*.unit_price'       => 'required|numeric|min:0',
+            'items.*.discount'         => 'nullable|numeric|min:0',
+            'items.*.empty_bottle_returned' => 'nullable|boolean',
+            'items.*.bottle_deposit_amount' => 'nullable|numeric|min:0',
+            'items.*.serving_ml'       => 'nullable|numeric|min:0',
+            'discount'                 => 'nullable|numeric|min:0',
+            'tax'                      => 'nullable|numeric|min:0',
+            'tax_rate'                 => 'nullable|numeric|min:0|max:100',
+            'table_number'             => 'nullable|string|max:50',
+            'notes'                    => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Update bill header
+            $discount = $data['discount'] ?? 0;
+            $tax      = $data['tax'] ?? 0;
+            $subtotal = 0;
+
+            // Pre-validate items
+            $itemData = [];
+            foreach ($data['items'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+                if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
+                    throw new \Exception("Product not available for your branch: {$product->name}");
+                }
+
+                $qty         = $item['quantity'];
+                $unitPrice   = $item['unit_price'];
+                $itemDisc    = $item['discount'] ?? 0;
+                $lineTotal   = ($unitPrice * $qty) - $itemDisc;
+                $subtotal   += $lineTotal;
+
+                $depositCollected = 0;
+                if ($product->bottle_deposit_required) {
+                    $depositCollected = ($item['bottle_deposit_amount'] ?? self::DEFAULT_BOTTLE_DEPOSIT) * $qty;
+                    $subtotal        += $depositCollected;
+                }
+
+                $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal', 'depositCollected', 'item');
+            }
+
+            $total = $subtotal - $discount + $tax;
+
+            if (!$request->user()->isAdmin() && !empty($data['customer_id'])) {
+                $customer = Customer::findOrFail($data['customer_id']);
+                if ($customer->branch_id !== $request->user()->branch_id) {
+                    throw new \Exception('Selected customer does not belong to your branch.');
+                }
+            }
+
+            // Update sale
+            $sale->update([
+                'customer_id'   => $data['customer_id'] ?? null,
+                'subtotal'      => $subtotal,
+                'discount'      => $discount,
+                'tax'           => $tax,
+                'tax_rate'      => $data['tax_rate'] ?? 0,
+                'total'         => $total,
+                'table_number'  => $data['table_number'] ?? null,
+                'notes'         => $data['notes'] ?? null,
+            ]);
+
+            // Delete old items and create new ones
+            $sale->items()->delete();
+            foreach ($itemData as $i) {
+                SaleItem::create([
+                    'sale_id'    => $sale->id,
+                    'product_id' => $i['product']->id,
+                    'quantity'   => $i['qty'],
+                    'unit_price' => $i['unitPrice'],
+                    'discount'   => $i['itemDisc'],
+                    'serving_ml' => (float) ($i['item']['serving_ml'] ?? 0),
+                    'total'      => $i['lineTotal'],
+                ]);
+            }
+
+            AuditLog::record('draft_updated', "Draft {$sale->invoice_number} updated — LKR {$total}", $sale);
+
+            DB::commit();
+            return response()->json($sale->load(['items.product', 'customer', 'user']), 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function destroy(Sale $sale)
+    {
+        $this->authorizeBranch($sale->branch_id);
+        if (!request()->user()->canDeleteTransactions()) {
+            abort(403, 'You do not have permission to delete transactions.');
+        }
+        DB::beginTransaction();
+        try {
+            foreach ($sale->items as $item) {
+                $item->product->increment('stock_quantity', $item->quantity);
+            }
+            AuditLog::record('sale_deleted', "Sale {$sale->invoice_number} deleted, stock restored", $sale,
+                ['invoice' => $sale->invoice_number, 'total' => $sale->total]);
+            $sale->delete();
+            DB::commit();
+            return response()->json(['message' => 'Sale deleted and stock restored']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    private function authorizeBranch(?int $branchId): void
+    {
+        $user = request()->user();
+        if (!$user->isAdmin() && $user->branch_id !== $branchId) {
+            abort(403, 'Forbidden for this branch.');
+        }
+    }
+}

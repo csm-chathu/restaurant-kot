@@ -14,7 +14,7 @@
           <label class="form-label">Purchase Order *</label>
           <select v-model="form.purchase_id" class="form-input" @change="onPurchaseChange">
             <option value="">Select PO</option>
-            <option v-for="po in purchases" :key="po.id" :value="po.id">{{ po.purchase_number }} - {{ po.supplier?.name }}</option>
+            <option v-for="po in purchases" :key="po.id" :value="po.id">{{ po.purchase_number }} — {{ po.supplier?.name }}</option>
           </select>
         </div>
         <div>
@@ -27,34 +27,61 @@
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <!-- PO items table -->
+      <div v-if="loadingItems" class="flex items-center gap-2 text-sm text-gray-400 py-4">
+        <svg class="w-4 h-4 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+        Loading PO items…
+      </div>
+
+      <div v-else-if="form.items.length > 0" class="overflow-x-auto">
+        <p class="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Items from PO — adjust quantities and costs as received</p>
         <table class="w-full text-sm">
-          <thead>
+          <thead class="bg-gray-50">
             <tr>
               <th class="table-th">Product</th>
-              <th class="table-th">Receive Qty</th>
-              <th class="table-th">Free Qty</th>
-              <th class="table-th">Unit Cost</th>
+              <th class="table-th text-right">PO Qty</th>
+              <th class="table-th text-right">Receive Qty</th>
+              <th class="table-th text-right">Free Qty</th>
+              <th class="table-th text-right">Unit Cost</th>
               <th class="table-th">Batch</th>
               <th class="table-th">Expiry</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="(item, i) in form.items" :key="i">
-              <td class="table-td">{{ item.product_name }}</td>
-              <td class="table-td"><input v-model.number="item.quantity_received" type="number" min="0" step="0.001" class="form-input" /></td>
-              <td class="table-td"><input v-model.number="item.free_quantity" type="number" min="0" step="0.001" class="form-input" /></td>
-              <td class="table-td"><input v-model.number="item.unit_cost" type="number" min="0" step="0.01" class="form-input" /></td>
-              <td class="table-td"><input v-model="item.batch_number" class="form-input" /></td>
+            <tr v-for="(item, i) in form.items" :key="i" class="hover:bg-amber-50/30">
+              <td class="table-td font-medium text-gray-800">{{ item.product_name }}</td>
+              <td class="table-td text-right text-gray-500">{{ item.po_quantity }}</td>
+              <td class="table-td text-right">
+                <input v-model.number="item.quantity_received" type="number" min="0" step="0.001"
+                  class="form-input text-right w-24" />
+              </td>
+              <td class="table-td text-right">
+                <input v-model.number="item.free_quantity" type="number" min="0" step="0.001"
+                  class="form-input text-right w-24" />
+              </td>
+              <td class="table-td text-right">
+                <input v-model.number="item.unit_cost" type="number" min="0" step="0.01"
+                  class="form-input text-right w-28" />
+              </td>
+              <td class="table-td"><input v-model="item.batch_number" class="form-input w-28" /></td>
               <td class="table-td"><input v-model="item.expiry_date" type="date" class="form-input" /></td>
             </tr>
           </tbody>
         </table>
       </div>
 
+      <div v-else-if="form.purchase_id && !loadingItems" class="text-sm text-gray-400 py-2">
+        No items found on this PO.
+      </div>
+
       <div class="flex justify-end gap-2">
-        <button class="btn-secondary" @click="showForm = false">Cancel</button>
-        <button class="btn-primary" :disabled="saving" @click="submit">{{ saving ? 'Saving...' : 'Save GRN' }}</button>
+        <button class="btn-secondary" @click="cancelForm">Cancel</button>
+        <button class="btn-primary" :disabled="saving || form.items.length === 0" @click="submit">
+          {{ saving ? 'Saving…' : 'Save GRN' }}
+        </button>
       </div>
     </div>
 
@@ -90,10 +117,11 @@
 import { reactive, ref, onMounted } from 'vue'
 import axios from 'axios'
 
-const grns = ref({ data: [] })
-const purchases = ref([])
-const showForm = ref(false)
-const saving = ref(false)
+const grns         = ref({ data: [] })
+const purchases    = ref([])
+const showForm     = ref(false)
+const saving       = ref(false)
+const loadingItems = ref(false)
 
 const form = reactive({
   purchase_id: '',
@@ -115,34 +143,47 @@ async function load() {
   purchases.value = purchaseRes.data.data
 }
 
-function onPurchaseChange() {
-  const purchase = purchases.value.find(p => p.id == form.purchase_id)
-  form.items = (purchase?.items ?? []).map(i => ({
-    purchase_item_id: i.id,
-    product_id: i.product_id,
-    product_name: i.product?.name ?? 'Item',
-    quantity_received: i.quantity,
-    free_quantity: 0,
-    unit_cost: i.unit_cost,
-    batch_number: '',
-    expiry_date: '',
-  }))
+async function onPurchaseChange() {
+  form.items = []
+  if (!form.purchase_id) return
+
+  loadingItems.value = true
+  try {
+    const { data } = await axios.get(`/api/purchases/${form.purchase_id}`)
+    form.items = (data.items ?? []).map(i => ({
+      purchase_item_id:  i.id,
+      product_id:        i.product_id,
+      product_name:      i.product?.name ?? 'Item',
+      po_quantity:       i.quantity,
+      quantity_received: i.quantity,
+      free_quantity:     0,
+      unit_cost:         i.unit_cost,
+      batch_number:      '',
+      expiry_date:       '',
+    }))
+  } finally {
+    loadingItems.value = false
+  }
+}
+
+function cancelForm() {
+  showForm.value = false
+  form.purchase_id = ''
+  form.supplier_invoice_number = ''
+  form.notes = ''
+  form.items = []
 }
 
 async function submit() {
   saving.value = true
   try {
     await axios.post('/api/grns', {
-      purchase_id: form.purchase_id,
-      supplier_invoice_number: form.supplier_invoice_number,
-      notes: form.notes,
-      items: form.items,
+      purchase_id:              form.purchase_id,
+      supplier_invoice_number:  form.supplier_invoice_number,
+      notes:                    form.notes,
+      items:                    form.items,
     })
-    showForm.value = false
-    form.purchase_id = ''
-    form.supplier_invoice_number = ''
-    form.notes = ''
-    form.items = []
+    cancelForm()
     await load()
   } finally {
     saving.value = false

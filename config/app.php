@@ -18,6 +18,8 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'tenant_master_key' => env('TENANT_MASTER_KEY'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

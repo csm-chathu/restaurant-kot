@@ -19,7 +19,18 @@
           <option value="partial">Partial</option>
           <option value="refunded">Refunded</option>
         </select>
-        <button v-if="search || dateFrom || dateTo || statusFilter" @click="clearFilters"
+        <div class="flex items-center gap-1">
+          <button @click="setQuick('week')"
+            :class="quickFilter === 'week' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+            class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Week</button>
+          <button @click="setQuick('today')"
+            :class="quickFilter === 'today' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+            class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">Today</button>
+          <button @click="setQuick('month')"
+            :class="quickFilter === 'month' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+            class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Month</button>
+        </div>
+        <button v-if="search || statusFilter || quickFilter" @click="clearFilters"
           class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
       </div>
       <router-link to="/sales/new"
@@ -194,7 +205,31 @@ const page         = ref(1)
 const dateFrom     = ref('')
 const dateTo       = ref('')
 const statusFilter = ref('')
+const quickFilter  = ref('')
 const loading      = ref(false)
+
+function toDateStr(d) {
+  return d.toISOString().slice(0, 10)
+}
+
+function setQuick(range) {
+  const today = new Date()
+  if (range === 'today') {
+    dateFrom.value = toDateStr(today)
+    dateTo.value   = toDateStr(today)
+  } else if (range === 'week') {
+    const mon = new Date(today)
+    mon.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+    dateFrom.value = toDateStr(mon)
+    dateTo.value   = toDateStr(today)
+  } else if (range === 'month') {
+    dateFrom.value = toDateStr(new Date(today.getFullYear(), today.getMonth(), 1))
+    dateTo.value   = toDateStr(today)
+  }
+  quickFilter.value = range
+  page.value = 1
+  fetchData()
+}
 
 let timer = null
 function debouncedFetch() { clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchData() }, 400) }
@@ -216,7 +251,7 @@ async function fetchData() {
 }
 
 function clearFilters() {
-  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''
+  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''; quickFilter.value = ''
   page.value = 1; fetchData()
 }
 
@@ -287,5 +322,5 @@ async function del(s) {
   fetchData()
 }
 
-onMounted(fetchData)
+onMounted(() => setQuick('week'))
 </script>

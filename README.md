@@ -1,110 +1,296 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# LMUC — POS & Business Management System
 
-# Liquor Shop + Bar POS & Inventory Management System
+A multi-tenant Laravel 10 + Vue 3 POS platform for liquor bars, restaurants, and gold/jewelry shops. Each client runs on their own domain with a fully isolated database.
 
-A full-featured liquor shop, bar, and side-food POS platform built with **Laravel 10** (API) + **Vue 3 + Tailwind CSS** (SPA), using **MySQL**.
+---
 
-## Setup
+## Table of Contents
+
+1. [Tech Stack](#tech-stack)
+2. [First-Time Setup](#first-time-setup)
+3. [Environment Variables](#environment-variables)
+4. [Multi-Tenant Architecture](#multi-tenant-architecture)
+5. [Creating a New Tenant](#creating-a-new-tenant)
+6. [Default Credentials](#default-credentials)
+7. [Useful Commands](#useful-commands)
+8. [Frontend Development](#frontend-development)
+9. [Deployment — Nginx](#deployment--nginx)
+
+---
+
+## Tech Stack
+
+| Layer     | Technology                                        |
+|-----------|---------------------------------------------------|
+| Backend   | Laravel 10, Sanctum (Bearer token auth)           |
+| Frontend  | Vue 3 Composition API, Vite, Tailwind CSS         |
+| Database  | MySQL 8+ (one database per tenant)                |
+| Images    | Cloudinary (products), local storage (logos)      |
+| Charts    | vue-chartjs + Chart.js v3                         |
+| Barcodes  | JsBarcode (CODE128, printed via popup)            |
+
+---
+
+## First-Time Setup
 
 ```bash
-# 1. PHP dependencies (already downloaded if vendor/ exists)
+# 1. Clone
+git clone https://github.com/csm-chathu/restaurant.git
+cd restaurant
+
+# 2. PHP dependencies
 composer install
 
-# 2. Edit .env — set DB_DATABASE=liquor_pos_db, DB_USERNAME, DB_PASSWORD
-
-# 3. Generate app key
-php artisan key:generate
-
-# 4. Create MySQL database
-# CREATE DATABASE liquor_pos_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-# 5. Migrate and seed demo data
-php artisan migrate --seed
-
-# 6. Link storage
-php artisan storage:link
-
-# 7. Install frontend packages
+# 3. JS dependencies
 npm install
 
-# 8. Start Vite dev server (keep running)
-npm run dev
+# 4. Environment
+cp .env.example .env
+php artisan key:generate
+# Edit .env — set DB_*, CLOUDINARY_*, TENANT_MASTER_KEY
 
-# 9. Start Laravel (in separate terminal)
+# 5. Create the default database in MySQL, then migrate + seed demo data
+php artisan migrate --seed
+
+# 6. Link storage for uploaded logos
+php artisan storage:link
+
+# 7. Build frontend
+npm run build
+
+# 8. Start server
 php artisan serve
 ```
 
-**Default login:** admin@store.local / password
+Open `http://localhost` and log in with `admin@store.local` / `password`.
 
-## Modules
-- Dashboard (sales trends, KPIs, low-stock alerts)
-- Products (liquor, beer, soft drinks, food, accessories)
-- Categories, Suppliers, Guests, and tables
-- POS billing (counter sale, table sale, barcode scanning)
-- Purchase orders, GRN, and stock replenishment
-- Shift close, audit log, reports, and stock movement tracking
+---
 
+## Environment Variables
 
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+```dotenv
+APP_NAME="My Shop Name"
+APP_URL=http://localhost
 
-## About Laravel
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=restaurant          # default (localhost) tenant database
+DB_USERNAME=root
+DB_PASSWORD=secret
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+# Cloudinary — product image uploads
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_FOLDER=products
+CLOUDINARY_VERIFY=true          # set false to skip SSL in local dev
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+# Multi-tenant — keep this secret, used to protect POST /api/tenants
+TENANT_MASTER_KEY=change-this-secret-key
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Multi-Tenant Architecture
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Every tenant has their own domain and their own MySQL database. The schema is identical across all databases — they all run the same migrations.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### How domain routing works
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. `ResolveTenantDatabase` middleware runs on **every request** (registered globally in `Kernel.php`).
+2. It reads `$request->getHost()` and looks it up in `config/tenants.php`.
+3. If found → switches the MySQL connection to that tenant's database.
+4. If not found → returns `404` so no data leaks between tenants.
 
-## Laravel Sponsors
+### `config/tenants.php`
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```php
+return [
+    'localhost'           => 'restaurant',     // local dev
+    'shop1.example.com'  => 'lmuc_shop1',
+    'shop2.example.com'  => 'lmuc_shop2',
+];
+```
 
-### Premium Partners
+Add one entry per client. Always run `php artisan config:clear` after editing this file.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+---
 
-## Contributing
+## Creating a New Tenant
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Option A — Artisan command (requires server SSH access)
 
-## Code of Conduct
+```bash
+php artisan tenant:create {domain} {database} [--password=secret]
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Example
+php artisan tenant:create shop1.example.com lmuc_shop1 --password=SecurePass123
 
-## Security Vulnerabilities
+# Always clear config cache after
+php artisan config:clear
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+The command:
+1. Creates the MySQL database
+2. Runs all migrations against it
+3. Seeds chart of accounts + one admin user
+4. Writes the domain entry into `config/tenants.php`
+5. Prints the login credentials
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Option B — REST API endpoint
+
+**`POST /api/tenants`**
+
+Protected by the `X-Tenant-Key` header (must match `TENANT_MASTER_KEY` in `.env`).
+
+#### Request
+
+```http
+POST /api/tenants
+Content-Type: application/json
+X-Tenant-Key: change-this-secret-key
+
+{
+    "domain":   "shop1.example.com",
+    "database": "lmuc_shop1",
+    "password": "SecurePass123"
+}
+```
+
+| Field      | Required | Notes                                           |
+|------------|----------|-------------------------------------------------|
+| `domain`   | Yes      | Bare hostname — no `https://` or trailing slash |
+| `database` | Yes      | MySQL db name — alphanumeric + underscores only |
+| `password` | No       | Admin password, defaults to `password`          |
+
+#### Response `201 Created`
+
+```json
+{
+    "message":            "Tenant created successfully.",
+    "domain":             "shop1.example.com",
+    "database":           "lmuc_shop1",
+    "login_email":        "admin@store.local",
+    "login_password":     "SecurePass123",
+    "already_registered": false
+}
+```
+
+#### cURL example
+
+```bash
+curl -X POST https://yourserver.com/api/tenants \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Key: change-this-secret-key" \
+  -d '{
+    "domain":   "shop1.example.com",
+    "database": "lmuc_shop1",
+    "password": "SecurePass123"
+  }'
+```
+
+> The API automatically updates `config/tenants.php` and calls `config:clear`. No manual step needed.
+
+---
+
+## Default Credentials
+
+Seeded by `TenantSeeder` (fresh tenant — no demo data):
+
+| Email                   | Password   | Role          | Can Delete |
+|-------------------------|------------|---------------|:----------:|
+| `owner@store.local`     | `password` | Owner         | ✓          |
+| `admin@store.local`     | `password` | Admin         | ✓          |
+| `manager@store.local`   | `password` | Manager       | ✗          |
+| `cashier@store.local`   | `password` | Cashier       | ✗          |
+| `keeper@store.local`    | `password` | Store Keeper  | ✗          |
+
+> Change all passwords immediately after first login via Settings → Users.
+
+`DatabaseSeeder` (used with `--seed`) additionally creates demo branches, users, products, suppliers, and customers — for development only.
+
+---
+
+## Useful Commands
+
+```bash
+# Run pending migrations
+php artisan migrate
+
+# Fresh schema + demo data (DESTROYS ALL DATA — dev only)
+php artisan migrate:fresh --seed
+
+# Fresh schema + login only (no demo data)
+php artisan migrate:fresh
+php artisan db:seed --class=TenantSeeder
+
+# Create a production tenant
+php artisan tenant:create shop1.example.com lmuc_shop1 --password=Secret123
+
+# Clear config cache (required after editing config/tenants.php)
+php artisan config:clear
+
+# Clear everything
+php artisan optimize:clear
+
+# Run tests
+php artisan test
+
+# Code style (Laravel Pint)
+./vendor/bin/pint
+```
+
+---
+
+## Frontend Development
+
+```bash
+# Hot-reload dev server
+npm run dev
+
+# Production build
+npm run build
+```
+
+- Pages: `resources/js/pages/`
+- Shared components: `resources/js/components/`
+- Auth state: Pinia store at `resources/js/stores/auth.js`
+- Router: `resources/js/router.js`
+
+All API calls use Axios with a Bearer token. All routes except `POST /api/login`,
+`GET /api/public/settings`, and `POST /api/tenants` require `auth:sanctum`.
+
+---
+
+## Deployment — Nginx
+
+One server block handles all tenant domains:
+
+```nginx
+server {
+    listen 80;
+    server_name ~^(.+)$;
+
+    root /var/www/restaurant/public;
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+
+**Post-deploy checklist:**
+- [ ] Point all tenant domains DNS to the server
+- [ ] Add each domain to `config/tenants.php` (or use `POST /api/tenants`)
+- [ ] `php artisan storage:link`
+- [ ] `php artisan config:clear && php artisan optimize`
+- [ ] `storage/` and `bootstrap/cache/` are writable by the web server

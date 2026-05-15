@@ -39,19 +39,16 @@
             <tr>
               <th class="table-th">Image</th>
               <th class="table-th">SKU</th>
-              <th class="table-th">Barcode</th>
               <th class="table-th">Name</th>
               <th class="table-th">Type</th>
               <th class="table-th">Brand</th>
               <th class="table-th">Category</th>
               <th class="table-th">Unit / Base</th>
               <th class="table-th">Stock</th>
-              <th class="table-th">Buy Price</th>
-              <th class="table-th">Sell Price</th>
+              <th class="table-th">Sell Price (LKR)</th>
               <th class="table-th">Deposit</th>
-              <th class="table-th">Tax</th>
               <th class="table-th">Status</th>
-              <th class="table-th">Actions</th>
+              <th class="table-th sticky right-0 bg-gray-50 border-l border-gray-200">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -63,7 +60,6 @@
                 <div v-else class="w-10 h-10 rounded-md bg-gray-100 border border-gray-200"></div>
               </td>
               <td class="table-td font-mono text-xs">{{ p.sku }}</td>
-              <td class="table-td font-mono text-xs text-gray-700">{{ p.barcode || '—' }}</td>
               <td class="table-td font-medium">{{ p.name }}</td>
               <td class="table-td">{{ p.product_type }}</td>
               <td class="table-td text-gray-500">{{ p.brand || '—' }}</td>
@@ -74,19 +70,23 @@
                   {{ p.stock_quantity }}
                 </span>
               </td>
-              <td class="table-td">LKR {{ Number(p.purchase_price).toLocaleString() }}</td>
-              <td class="table-td font-semibold text-gold-700">LKR {{ Number(p.selling_price).toLocaleString() }}</td>
+              <td class="table-td font-semibold text-gold-700">{{ Number(p.selling_price).toLocaleString() }}</td>
               <td class="table-td">{{ p.bottle_deposit_required ? 'Yes' : 'No' }}</td>
-              <td class="table-td text-gray-500">{{ p.tax_setting?.name || '—' }}</td>
               <td class="table-td">
                 <span :class="p.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
                   {{ p.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <td class="table-td">
-                <div class="flex items-center gap-2">
-                  <button @click="reprintBarcode(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
-                    <PrinterIcon class="w-3.5 h-3.5" /> Print Barcode
+              <td class="table-td sticky right-0 bg-white border-l border-gray-200">
+                <div class="flex items-center gap-2 whitespace-nowrap">
+                  <button @click="reprintBarcode(p)"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
+                    <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+                      <rect x="1" y="4" width="1.5" height="16" rx="0.5"/><rect x="4" y="4" width="3" height="16" rx="0.5"/>
+                      <rect x="9" y="4" width="1.5" height="16" rx="0.5"/><rect x="12" y="4" width="3" height="16" rx="0.5"/>
+                      <rect x="17" y="4" width="1.5" height="16" rx="0.5"/><rect x="20" y="4" width="2.5" height="16" rx="0.5"/>
+                    </svg>
+                    Print
                   </button>
                   <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                     <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
@@ -98,7 +98,7 @@
               </td>
             </tr>
             <tr v-if="!products.data?.length">
-              <td colspan="15" class="table-td text-center text-gray-400 py-8">No products found</td>
+              <td colspan="12" class="table-td text-center text-gray-400 py-8">No products found</td>
             </tr>
           </tbody>
         </table>
@@ -144,7 +144,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
-import { PencilSquareIcon, PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import JsBarcode from 'jsbarcode'
 import ProductModal from '@/components/ProductModal.vue'
 

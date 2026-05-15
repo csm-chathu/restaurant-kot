@@ -29,6 +29,18 @@ use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Tenant management — protected by X-Tenant-Key header (see TENANT_MASTER_KEY in .env)
+Route::post('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'create']);
+
+// Public — no auth required (used by login page)
+Route::get('/public/settings', function () {
+    $branch = \App\Models\Branch::first();
+    return response()->json([
+        'name'     => $branch?->name ?? config('app.name'),
+        'logo_url' => $branch?->logo_path ? asset('storage/' . $branch->logo_path) : null,
+    ]);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user()->load('branch:id,name,code'));
     Route::post('/logout', [AuthController::class, 'logout']);

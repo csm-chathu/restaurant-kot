@@ -823,12 +823,20 @@ async function submit(billStatus) {
       })),
     }
 
+    let saleId
     if (activeDraftId.value && billStatus === 'draft') {
-      await axios.put(`/api/sales/${activeDraftId.value}`, payload)
+      const { data } = await axios.put(`/api/sales/${activeDraftId.value}`, payload)
+      saleId = data.id ?? activeDraftId.value
     } else {
-      await axios.post('/api/sales', payload)
+      const { data } = await axios.post('/api/sales', payload)
+      saleId = data.id
     }
-    router.push('/sales')
+
+    if (billStatus === 'completed') {
+      router.push(`/sales/${saleId}`)
+    } else {
+      router.push('/sales')
+    }
   } catch (e) {
     error.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')

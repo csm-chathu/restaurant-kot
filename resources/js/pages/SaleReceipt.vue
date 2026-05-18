@@ -116,12 +116,12 @@
               <span v-if="item.product?.weight"> {{ item.product.weight }}g</span>
             </div>
             <!-- Value breakdown -->
-            <div v-if="item.gold_value || item.making_charge || item.wastage_amount || item.gemstone_value"
+            <div v-if="Number(item.gold_value) > 0 || Number(item.making_charge) > 0 || Number(item.wastage_amount) > 0 || Number(item.gemstone_value) > 0"
               style="font-size:10px; color:#222; padding-left:2px;">
-              <span v-if="item.gold_value">Gold:{{ lkr(item.gold_value) }}  </span>
-              <span v-if="item.gemstone_value">Gem:{{ lkr(item.gemstone_value) }}  </span>
-              <span v-if="item.making_charge">MC:{{ lkr(item.making_charge) }}  </span>
-              <span v-if="item.wastage_amount">Wst:{{ lkr(item.wastage_amount) }}</span>
+              <span v-if="Number(item.gold_value) > 0">Gold:{{ lkr(item.gold_value) }}  </span>
+              <span v-if="Number(item.gemstone_value) > 0">Gem:{{ lkr(item.gemstone_value) }}  </span>
+              <span v-if="Number(item.making_charge) > 0">MC:{{ lkr(item.making_charge) }}  </span>
+              <span v-if="Number(item.wastage_amount) > 0">Wst:{{ lkr(item.wastage_amount) }}</span>
             </div>
             <div v-if="Number(item.discount) > 0" style="font-size:10px; color:#222; padding-left:2px;">
               Item Disc: -{{ lkr(item.discount) }}

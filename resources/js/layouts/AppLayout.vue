@@ -61,8 +61,13 @@
       <!-- Top bar -->
       <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
-        <div class="flex items-center gap-2 text-sm text-gray-500">
+        <div class="flex items-center gap-3 text-sm text-gray-500">
           <span>{{ currentDate }}</span>
+          <button @click="showGuide = true"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 text-xs font-semibold transition-colors">
+            <span class="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold leading-none">?</span>
+            Getting Started
+          </button>
         </div>
       </header>
 
@@ -72,6 +77,8 @@
       </main>
     </div>
   </div>
+
+  <GettingStarted v-model="showGuide" />
 </template>
 
 <script setup>
@@ -79,6 +86,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import axios from 'axios'
+import GettingStarted from '@/components/GettingStarted.vue'
 import {
   HomeIcon, CubeIcon, TagIcon, UsersIcon,
   TruckIcon, ShoppingCartIcon, ArchiveBoxIcon,
@@ -87,9 +95,10 @@ import {
   ClipboardDocumentListIcon, CurrencyDollarIcon, FireIcon, TableCellsIcon, ChartBarIcon, Cog6ToothIcon, BanknotesIcon,
 } from '@heroicons/vue/24/outline'
 
-const auth   = useAuthStore()
-const router = useRouter()
-const route  = useRoute()
+const auth      = useAuthStore()
+const router    = useRouter()
+const route     = useRoute()
+const showGuide = ref(false)
 const restaurant = ref({ name: 'Liquor Shop + Bar', logo_url: '', address: '' })
 
 const navItems = [
@@ -106,6 +115,7 @@ const navItems = [
 
 const adminNavItems = [
   { to: '/price-matrix', label: 'Price Matrix',   icon: SparklesIcon },
+  { to: '/opening-balance', label: 'Opening Balance', icon: ClipboardDocumentListIcon },
   { to: '/grn',        label: 'GRN',            icon: ClipboardDocumentCheckIcon },
   { to: '/supplier-returns', label: 'Supplier Returns', icon: ArchiveBoxIcon },
   { to: '/open-bottles', label: 'Open Bottles', icon: SparklesIcon },
@@ -142,6 +152,7 @@ const pageTitles = {
   'audit-log':     'Stock Ledger',
   'bottle-deposits':      'Bottle Deposits',
   'damages':         'Damages & Waste',
+  'opening-balance': 'Opening Balances',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Liquor Shop POS')

@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Support\CloudinaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -53,7 +52,7 @@ class ProductController extends Controller
             'image'                   => 'nullable|image|max:2048',
         ]);
 
-        $data['sku'] = strtoupper('BAR-' . Str::random(8));
+        $data['sku'] = 'NEW-' . uniqid('', true); // temp unique; replaced below with numeric ID
         $data['branch_id'] = $request->user()->branch_id;
         $data['selling_variants'] = isset($data['selling_variants']) ? trim($data['selling_variants']) : null;
         $data['bottle_deposit_required'] = $request->boolean('bottle_deposit_required');
@@ -65,7 +64,9 @@ class ProductController extends Controller
             $data['image_public_id'] = $uploaded['public_id'];
         }
 
-        return response()->json(Product::create($data), 201);
+        $product = Product::create($data);
+        $product->update(['sku' => str_pad($product->id, 6, '0', STR_PAD_LEFT)]);
+        return response()->json($product->fresh(), 201);
     }
 
     public function show(Product $product)

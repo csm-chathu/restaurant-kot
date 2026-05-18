@@ -48,6 +48,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
+    // Opening balances
+    Route::get('/opening-balance/stock',      [\App\Http\Controllers\Api\OpeningBalanceController::class, 'stockIndex']);
+    Route::post('/opening-balance/stock',     [\App\Http\Controllers\Api\OpeningBalanceController::class, 'stockSave']);
+    Route::get('/opening-balance/accounts',   [\App\Http\Controllers\Api\OpeningBalanceController::class, 'accountIndex']);
+    Route::post('/opening-balance/accounts',  [\App\Http\Controllers\Api\OpeningBalanceController::class, 'accountSave']);
+
     // Reference selects (no pagination)
     Route::get('/categories/all',  [CategoryController::class, 'all']);
     Route::get('/suppliers/all',   [SupplierController::class, 'all']);

@@ -13,9 +13,13 @@
             <label class="form-label">Name *</label>
             <input v-model="form.name" required class="form-input" />
           </div>
+          <div v-if="product">
+            <label class="form-label">SKU</label>
+            <input :value="product.sku" readonly class="form-input font-mono bg-gray-50 text-gray-500 cursor-not-allowed" />
+          </div>
           <div>
-            <label class="form-label">SKU / Barcode</label>
-            <input v-model="form.barcode" class="form-input font-mono" placeholder="Scan or type barcode" />
+            <label class="form-label">Custom Barcode <span class="text-gray-400 font-normal">(optional override)</span></label>
+            <input v-model="form.barcode" class="form-input font-mono" placeholder="Scan or type barcode — leave blank to use SKU" />
           </div>
           <div>
             <label class="form-label">Category *</label>

@@ -51,6 +51,7 @@ class SaleController extends Controller
             'items.*.empty_bottle_returned' => 'nullable|boolean',
             'items.*.bottle_deposit_amount' => 'nullable|numeric|min:0',
             'items.*.serving_ml'       => 'nullable|numeric|min:0',
+            'items.*.open_bottle_id'   => 'nullable|exists:open_bottles,id',
             'discount'                 => 'nullable|numeric|min:0',
             'tax'                      => 'nullable|numeric|min:0',
             'tax_rate'                 => 'nullable|numeric|min:0|max:100',
@@ -63,6 +64,7 @@ class SaleController extends Controller
             'payments.*.notes'         => 'nullable|string|max:255',
             'status'                   => 'nullable|in:draft,completed',
             'table_number'             => 'nullable|string|max:50',
+            'card_reference'           => 'nullable|string|max:100',
             'notes'                    => 'nullable|string',
             'sold_at'                  => 'nullable|date',
         ]);
@@ -82,7 +84,8 @@ class SaleController extends Controller
                 if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
-                if ($product->stock_quantity < $item['quantity']) {
+                $isOpenBottleSell = !empty($item['open_bottle_id']);
+                if (!$isOpenBottleSell && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
                 }
 
@@ -178,6 +181,7 @@ class SaleController extends Controller
                 'tax_rate'              => $data['tax_rate'] ?? 0,
                 'total'                 => $total,
                 'payment_method'        => $paymentMethod,
+                'card_reference'        => ($paymentMethod === 'card') ? ($data['card_reference'] ?? null) : null,
                 'payment_status'        => $paymentStatus,
                 'amount_paid'           => $amountPaid,
                 'status'                => $isDraft ? 'draft' : 'completed',
@@ -190,19 +194,24 @@ class SaleController extends Controller
 
             foreach ($itemData as $i) {
                 SaleItem::create([
-                    'sale_id'        => $sale->id,
-                    'product_id'     => $i['product']->id,
-                    'quantity'       => $i['qty'],
-                    'unit_price'     => $i['unitPrice'],
-                    'discount'       => $i['itemDisc'],
-                    'serving_ml'     => (float) ($i['item']['serving_ml'] ?? 0),
-                    'total'          => $i['lineTotal'],
+                    'sale_id'         => $sale->id,
+                    'product_id'      => $i['product']->id,
+                    'quantity'        => $i['qty'],
+                    'unit_price'      => $i['unitPrice'],
+                    'discount'        => $i['itemDisc'],
+                    'serving_ml'      => (float) ($i['item']['serving_ml'] ?? 0),
+                    'open_bottle_id'  => $i['item']['open_bottle_id'] ?? null,
+                    'total'           => $i['lineTotal'],
                 ]);
 
                 // Only process stock/deposits for completed sales, not drafts
                 if (!$isDraft) {
+                    $openBottleId = $i['item']['open_bottle_id'] ?? null;
                     $servingMl = (float) ($i['item']['serving_ml'] ?? 0);
-                    if ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
+
+                    if ($openBottleId) {
+                        $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
+                    } elseif ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
                     } else {
                         $i['product']->decrement('stock_quantity', $i['qty']);
@@ -255,58 +264,77 @@ class SaleController extends Controller
 
     private function handleOpenBottlePour(Request $request, Sale $sale, Product $product, float $servingMl): void
     {
-        $openBottle = OpenBottle::where('product_id', $product->id)
-            ->where('branch_id', $request->user()->branch_id)
-            ->where('status', 'open')
-            ->where('remaining_volume_ml', '>=', $servingMl)
-            ->orderBy('opened_at')
-            ->first();
+        $remaining = $servingMl;
 
-        if (!$openBottle) {
-            if ($product->stock_quantity < 1) {
-                throw new \Exception("Insufficient stock for open bottle tracking: {$product->name}");
+        while ($remaining > 0.001) {
+            $openBottle = OpenBottle::where('product_id', $product->id)
+                ->where('branch_id', $request->user()->branch_id)
+                ->where('status', 'open')
+                ->where('remaining_volume_ml', '>', 0)
+                ->orderBy('opened_at')
+                ->first();
+
+            if (!$openBottle) {
+                if ($product->stock_quantity < 1) {
+                    throw new \Exception("Insufficient stock for open bottle tracking: {$product->name}");
+                }
+
+                $openingVolume = $this->extractMlFromUnit($product->base_unit) ?: 750;
+                $product->decrement('stock_quantity', 1);
+                $product->refresh();
+
+                $openBottle = OpenBottle::create([
+                    'branch_id'          => $request->user()->branch_id,
+                    'product_id'         => $product->id,
+                    'sale_id'            => $sale->id,
+                    'opened_by'          => $request->user()->id,
+                    'opening_volume_ml'  => $openingVolume,
+                    'remaining_volume_ml'=> $openingVolume,
+                    'status'             => 'open',
+                    'opened_at'          => now(),
+                    'notes'              => 'Auto-opened from sale',
+                ]);
+
+                StockLedger::record(
+                    $product,
+                    'OPEN_BOTTLE',
+                    1,
+                    $request->user()->id,
+                    $request->user()->branch_id,
+                    'OPEN_BOTTLE',
+                    $openBottle->id,
+                    'Bottle opened from sale',
+                    ['invoice_number' => $sale->invoice_number]
+                );
             }
 
-            $openingVolume = $this->extractMlFromUnit($product->base_unit) ?: 750;
-            $product->decrement('stock_quantity', 1);
-            $product->refresh();
+            $pour = min($remaining, $openBottle->remaining_volume_ml);
+            $openBottle->remaining_volume_ml -= $pour;
 
-            $openBottle = OpenBottle::create([
-                'branch_id' => $request->user()->branch_id,
-                'product_id' => $product->id,
-                'sale_id' => $sale->id,
-                'opened_by' => $request->user()->id,
-                'opening_volume_ml' => $openingVolume,
-                'remaining_volume_ml' => $openingVolume,
-                'status' => 'open',
-                'opened_at' => now(),
-                'notes' => 'Auto-opened from sale',
-            ]);
+            if ($openBottle->remaining_volume_ml <= 0) {
+                $openBottle->remaining_volume_ml = 0;
+                $openBottle->status = 'empty';
+                $openBottle->closed_at = now();
+            }
 
-            StockLedger::record(
-                $product,
-                'OPEN_BOTTLE',
-                1,
-                $request->user()->id,
-                $request->user()->branch_id,
-                'OPEN_BOTTLE',
-                $openBottle->id,
-                'Bottle opened from sale',
-                ['invoice_number' => $sale->invoice_number]
-            );
+            $openBottle->save();
+            $remaining -= $pour;
         }
+    }
 
-        if ($openBottle->remaining_volume_ml < $servingMl) {
-            throw new \Exception("Not enough remaining volume in open bottle for: {$product->name}");
-        }
+    private function handleOpenBottleSell(Request $request, Sale $sale, int $openBottleId): void
+    {
+        $openBottle = OpenBottle::where('id', $openBottleId)
+            ->where('branch_id', $request->user()->branch_id)
+            ->where('status', 'open')
+            ->firstOrFail();
 
-        $openBottle->remaining_volume_ml -= $servingMl;
-        if ($openBottle->remaining_volume_ml <= 0) {
-            $openBottle->remaining_volume_ml = 0;
-            $openBottle->status = 'empty';
-            $openBottle->closed_at = now();
-        }
+        $openBottle->status = 'closed';
+        $openBottle->closed_at = now();
+        $openBottle->notes = trim(($openBottle->notes ? $openBottle->notes . ' | ' : '') . "Sold via {$sale->invoice_number}");
         $openBottle->save();
+
+        AuditLog::record('open_bottle_sold', "Open bottle #{$openBottle->id} ({$openBottle->remaining_volume_ml}ml) sold via {$sale->invoice_number}", $openBottle);
     }
 
     private function extractMlFromUnit(?string $value): float
@@ -420,10 +448,12 @@ class SaleController extends Controller
             'items.*.empty_bottle_returned' => 'nullable|boolean',
             'items.*.bottle_deposit_amount' => 'nullable|numeric|min:0',
             'items.*.serving_ml'       => 'nullable|numeric|min:0',
+            'items.*.open_bottle_id'   => 'nullable|exists:open_bottles,id',
             'discount'                 => 'nullable|numeric|min:0',
             'tax'                      => 'nullable|numeric|min:0',
             'tax_rate'                 => 'nullable|numeric|min:0|max:100',
             'table_number'             => 'nullable|string|max:50',
+            'card_reference'           => 'nullable|string|max:100',
             'notes'                    => 'nullable|string',
             'status'                   => 'nullable|in:draft,completed',
             'payment_method'           => 'nullable|in:cash,card,bank_transfer,cheque,other',
@@ -449,7 +479,8 @@ class SaleController extends Controller
                 if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
-                if ($isCompleting && $product->stock_quantity < $item['quantity']) {
+                $isOpenBottleSell = !empty($item['open_bottle_id']);
+                if ($isCompleting && !$isOpenBottleSell && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
                 }
 
@@ -495,6 +526,7 @@ class SaleController extends Controller
                 'tax_rate'       => $data['tax_rate'] ?? 0,
                 'total'          => $total,
                 'table_number'   => $data['table_number'] ?? null,
+                'card_reference' => ($paymentMethod === 'card') ? ($data['card_reference'] ?? null) : null,
                 'notes'          => $data['notes'] ?? null,
                 'status'         => $isCompleting ? 'completed' : 'draft',
                 'payment_method' => $paymentMethod,
@@ -508,18 +540,23 @@ class SaleController extends Controller
             $sale->items()->delete();
             foreach ($itemData as $i) {
                 SaleItem::create([
-                    'sale_id'    => $sale->id,
-                    'product_id' => $i['product']->id,
-                    'quantity'   => $i['qty'],
-                    'unit_price' => $i['unitPrice'],
-                    'discount'   => $i['itemDisc'],
-                    'serving_ml' => (float) ($i['item']['serving_ml'] ?? 0),
-                    'total'      => $i['lineTotal'],
+                    'sale_id'        => $sale->id,
+                    'product_id'     => $i['product']->id,
+                    'quantity'       => $i['qty'],
+                    'unit_price'     => $i['unitPrice'],
+                    'discount'       => $i['itemDisc'],
+                    'serving_ml'     => (float) ($i['item']['serving_ml'] ?? 0),
+                    'open_bottle_id' => $i['item']['open_bottle_id'] ?? null,
+                    'total'          => $i['lineTotal'],
                 ]);
 
                 if ($isCompleting) {
+                    $openBottleId = $i['item']['open_bottle_id'] ?? null;
                     $servingMl = (float) ($i['item']['serving_ml'] ?? 0);
-                    if ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
+
+                    if ($openBottleId) {
+                        $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
+                    } elseif ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
                     } else {
                         $i['product']->decrement('stock_quantity', $i['qty']);

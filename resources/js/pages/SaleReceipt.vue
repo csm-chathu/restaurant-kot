@@ -111,6 +111,7 @@
             </div>
             <!-- Sub-detail line -->
             <div style="color:#222; font-size:10px; padding-left:2px; line-height:1.35;">
+              <span v-if="item.open_bottle_id" style="font-style:italic;">[Opened bottle]  </span>
               <span v-if="item.product?.sku">SKU:{{ item.product.sku }}  </span>
               <span v-if="item.product?.karat">{{ item.product.karat }}</span>
               <span v-if="item.product?.weight"> {{ item.product.weight }}g</span>

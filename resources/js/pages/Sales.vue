@@ -86,7 +86,7 @@
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th class="table-th w-36">Invoice</th>
-              <th class="table-th">Customer</th>
+              <th class="table-th w-32">Customer</th>
               <th class="table-th w-28">Date</th>
               <th class="table-th w-36 text-right">Total</th>
               <th class="table-th w-32">Payment</th>
@@ -111,15 +111,7 @@
                   </span>
                 </td>
                 <td class="table-td">
-                  <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0">
-                      {{ (s.customer?.name ?? 'W')[0].toUpperCase() }}
-                    </div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-800">{{ s.customer?.name ?? 'Walk-in' }}</p>
-                      <p v-if="s.customer?.phone" class="text-xs text-gray-400">{{ s.customer.phone }}</p>
-                    </div>
-                  </div>
+                  <p class="text-sm font-medium text-gray-800 truncate max-w-[120px]">{{ s.customer?.name ?? 'Walk-in' }}</p>
                 </td>
                 <td class="table-td text-xs text-gray-500">
                   <div>{{ formatDate(s.sold_at) }}</div>
@@ -133,6 +125,7 @@
                     class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full capitalize">
                     {{ paymentMethodLabel(s) }}
                   </span>
+                  <p v-if="s.card_reference" class="text-xs text-gray-400 mt-0.5 font-mono">{{ s.card_reference }}</p>
                 </td>
                 <td class="table-td">
                   <span :class="statusClass(s.payment_status)" class="badge capitalize">{{ s.payment_status }}</span>

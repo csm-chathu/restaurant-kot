@@ -49,6 +49,7 @@
               type="text"
               placeholder="Search products…"
               class="form-input pl-8 text-sm py-2"
+              @input="onSearchInput"
             />
           </div>
           <div class="relative">
@@ -217,12 +218,15 @@
                   </div>
 
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-gray-800 leading-tight truncate">
-                      {{ item.product_ref?.name || 'Product' }}
-                    </p>
+                    <div class="flex items-center gap-1.5">
+                      <p class="text-sm font-semibold text-gray-800 leading-tight truncate">
+                        {{ item.product_ref?.name || 'Product' }}
+                      </p>
+                      <span v-if="item.open_bottle_id" class="shrink-0 px-1.5 py-0 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">OPENED</span>
+                    </div>
                     <p class="text-xs text-amber-600">
                       LKR {{ lkr(getEffectiveUnitPrice(item)) }}
-                      <span v-if="item.serving_ml > 0" class="text-gray-400"> · {{ item.serving_ml }}ml</span>
+                      <span v-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400"> · {{ item.serving_ml }}ml</span>
                       <span v-if="!item.empty_bottle_returned && item.product_ref?.bottle_deposit_required" class="text-gray-400"> · +dep</span>
                     </p>
                   </div>
@@ -231,12 +235,14 @@
                   <div class="flex items-center gap-1 shrink-0">
                     <button
                       @click="decrementItem(item, i)"
-                      class="w-7 h-7 rounded-full bg-gray-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center text-gray-600 font-bold text-lg leading-none transition-colors"
+                      :disabled="!!item.open_bottle_id"
+                      class="w-7 h-7 rounded-full bg-gray-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center text-gray-600 font-bold text-lg leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >−</button>
                     <span class="w-6 text-center text-sm font-bold text-gray-900">{{ item.quantity }}</span>
                     <button
                       @click="item.quantity++; recalcItem(item)"
-                      class="w-7 h-7 rounded-full bg-amber-100 hover:bg-amber-200 flex items-center justify-center text-amber-700 font-bold text-lg leading-none transition-colors"
+                      :disabled="!!item.open_bottle_id"
+                      class="w-7 h-7 rounded-full bg-amber-100 hover:bg-amber-200 flex items-center justify-center text-amber-700 font-bold text-lg leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >+</button>
                   </div>
 
@@ -258,16 +264,36 @@
                     <input v-model.number="item.discount" type="number" min="0" class="w-16 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
                   </div>
 
-                  <!-- Serving ml for liquor -->
-                  <div v-if="item.product_ref?.product_type === 'Liquor'" class="flex items-center gap-1">
-                    <span class="text-xs text-gray-400">ml:</span>
-                    <button v-for="size in [30, 50, 60, 75]" :key="size"
-                      @click="item.serving_ml = size; recalcItem(item)" type="button"
-                      class="px-1.5 py-0.5 text-xs font-semibold rounded transition-colors"
-                      :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
-                    >{{ size }}</button>
-                    <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
-                  </div>
+                  <!-- Opened bottle badge OR sell opened bottle button -->
+                  <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type)">
+                    <template v-if="item.open_bottle_id">
+                      <!-- Show which opened bottle is linked + editable price + clear -->
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                        Opened · {{ item.open_bottle_ref?.remaining_volume_ml?.toFixed(0) }}ml
+                      </span>
+                      <div class="flex items-center gap-1">
+                        <span class="text-xs text-gray-400">Price:</span>
+                        <input v-model.number="item.unit_price" type="number" min="0" class="w-20 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" />
+                      </div>
+                      <button @click="clearOpenBottle(item)" type="button" class="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+                    </template>
+                    <template v-else>
+                      <!-- Serving ml picker -->
+                      <div class="flex items-center gap-1">
+                        <span class="text-xs text-gray-400">ml:</span>
+                        <button v-for="size in [30, 50, 60, 75]" :key="size"
+                          @click="item.serving_ml = size; recalcItem(item)" type="button"
+                          class="px-1.5 py-0.5 text-xs font-semibold rounded transition-colors"
+                          :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
+                        >{{ size }}</button>
+                        <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
+                      </div>
+                      <!-- Sell opened bottle button -->
+                      <button @click="showOpenBottlePicker(item)" type="button"
+                        class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
+                      >Sell opened bottle</button>
+                    </template>
+                  </template>
 
                   <!-- Bottle deposit -->
                   <div v-if="item.product_ref?.bottle_deposit_required" class="flex items-center gap-1.5">
@@ -355,6 +381,11 @@
             >{{ form.payment_status === 'pending' ? 'Pending' : form.payment_status === 'partial' ? 'Partial' : 'Paid' }}</button>
           </div>
 
+          <!-- Card reference -->
+          <div v-if="form.payment_method === 'card'" class="px-3 pb-1">
+            <input v-model="form.card_reference" type="text" placeholder="Card receipt reference…" class="form-input text-sm py-1.5 w-full" />
+          </div>
+
           <!-- Amount + quick cash -->
           <div class="px-3 pb-1.5">
             <div class="flex gap-1.5">
@@ -421,6 +452,45 @@
       </div>
     </div>
 
+    <!-- Open bottle picker modal -->
+    <div v-if="openBottlePicker.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="openBottlePicker.show = false">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 class="text-base font-bold text-gray-900">Select Opened Bottle</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{{ openBottlePicker.item?.product_ref?.name }}</p>
+          </div>
+          <button @click="openBottlePicker.show = false" class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+        </div>
+        <div class="p-4">
+          <div v-if="openBottlePicker.loading" class="flex items-center justify-center py-10 text-gray-400">
+            <ArrowPathIcon class="w-5 h-5 animate-spin mr-2" /> Loading…
+          </div>
+          <div v-else-if="!openBottlePicker.bottles.length" class="text-center py-10 text-gray-400 text-sm">
+            No open bottles available for this product.
+          </div>
+          <div v-else class="space-y-2 max-h-72 overflow-y-auto">
+            <button
+              v-for="bottle in openBottlePicker.bottles"
+              :key="bottle.id"
+              @click="selectOpenBottle(bottle)"
+              type="button"
+              class="w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors text-left"
+            >
+              <div>
+                <p class="text-sm font-semibold text-gray-800">Bottle #{{ bottle.id }}</p>
+                <p class="text-xs text-gray-400">Opened {{ new Date(bottle.opened_at).toLocaleDateString() }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-blue-600">{{ bottle.remaining_volume_ml?.toFixed(0) }} ml</p>
+                <p class="text-xs text-gray-400">remaining</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Camera scanner overlay -->
     <div v-if="scannerOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div class="w-full max-w-lg bg-gray-900 text-white rounded-2xl overflow-hidden shadow-2xl border border-gray-700">
@@ -480,7 +550,7 @@ const productGridSearch = ref('')
 const form = reactive({
   customer_id: '', payment_method: 'cash', payment_status: 'paid',
   discount: 0, tax: 0, tax_rate: 0, amount_paid: 0, notes: '',
-  table_number: '', status: 'completed',
+  table_number: '', status: 'completed', card_reference: '',
   items: [],
 })
 const selectedTaxId = ref('')
@@ -499,6 +569,43 @@ const barcodeInput = ref('')
 const barcodeError = ref('')
 let barcodeClearTimer = null
 
+// Open bottle picker
+const openBottlePicker = reactive({ show: false, item: null, bottles: [], loading: false })
+
+async function showOpenBottlePicker(item) {
+  openBottlePicker.item = item
+  openBottlePicker.bottles = []
+  openBottlePicker.show = true
+  openBottlePicker.loading = true
+  try {
+    const { data } = await axios.get('/api/open-bottles/available', { params: { product_id: item.product_id } })
+    openBottlePicker.bottles = data
+  } finally {
+    openBottlePicker.loading = false
+  }
+}
+
+function selectOpenBottle(bottle) {
+  const item = openBottlePicker.item
+  item.open_bottle_id = bottle.id
+  item.open_bottle_ref = bottle
+  item.serving_ml = 0
+  item.quantity = 1
+  // Price = proportion of remaining volume × full bottle selling price
+  const openingVol = bottle.opening_volume_ml || 1
+  const remainingVol = bottle.remaining_volume_ml || 0
+  const basePrice = Number(item.product_ref?.selling_price || item.unit_price || 0)
+  item.unit_price = Math.round((remainingVol / openingVol) * basePrice * 100) / 100
+  recalcItem(item)
+  openBottlePicker.show = false
+}
+
+function clearOpenBottle(item) {
+  item.open_bottle_id = null
+  item.open_bottle_ref = null
+  recalcItem(item)
+}
+
 // Scanner
 const scannerOpen     = ref(false)
 const scannerVideo    = ref(null)
@@ -512,11 +619,8 @@ let scannerFrame    = null
 let scannerBusy     = false
 
 const paymentOptions = [
-  { value: 'cash',          label: 'Cash' },
-  { value: 'card',          label: 'Card' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'cheque',        label: 'Cheque' },
-  { value: 'other',         label: 'Other' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'card', label: 'Card' },
 ]
 
 // ── Computed ──────────────────────────────────────────
@@ -597,6 +701,7 @@ function newItem() {
   return {
     product_id: '', product_search: '', quantity: 1, unit_price: 0, discount: 0,
     empty_bottle_returned: false, bottle_deposit_amount: 100, serving_ml: 0,
+    open_bottle_id: null, open_bottle_ref: null,
     product_ref: null, _lineTotal: 0,
   }
 }
@@ -614,6 +719,7 @@ function recalcItem(item) {
 }
 
 function getEffectiveUnitPrice(item) {
+  if (item.open_bottle_id) return Number(item.unit_price || 0)
   const baseUnitPrice = Number(item.unit_price || 0)
   const servingMl = Number(item.serving_ml || 0)
   const isLiquor = String(item.product_ref?.product_type || '').toLowerCase() === 'liquor'
@@ -669,6 +775,7 @@ function resetForm() {
   form.notes             = ''
   form.table_number      = ''
   form.status            = 'completed'
+  form.card_reference    = ''
   form.items             = []
   selectedTaxId.value       = ''
   error.value               = ''
@@ -755,6 +862,10 @@ function processBarcode(code) {
   barcodeError.value = ''
 }
 
+function onSearchInput() {
+  if (productGridSearch.value) activeCategory.value = 'All'
+}
+
 function scanBarcode() { processBarcode(barcodeInput.value) }
 
 async function openScanner() {
@@ -812,6 +923,7 @@ async function submit(billStatus) {
       status:         billStatus,
       table_number:   form.table_number || null,
       notes:          form.notes,
+      card_reference: form.payment_method === 'card' ? (form.card_reference || null) : null,
       items: form.items.filter(i => i.product_id).map(i => ({
         product_id:            i.product_id,
         quantity:              i.quantity,
@@ -820,6 +932,7 @@ async function submit(billStatus) {
         empty_bottle_returned: i.empty_bottle_returned,
         bottle_deposit_amount: i.bottle_deposit_amount,
         serving_ml:            i.serving_ml,
+        open_bottle_id:        i.open_bottle_id || null,
       })),
     }
 
@@ -862,6 +975,10 @@ onMounted(async () => {
   taxes.value           = t.data.filter(x => x.is_active)
   availableTables.value = tb.data
   draftBills.value      = drafts.data.data
+
+  // Default to Liquor category if it exists
+  const hasLiquor = products.value.some(p => p.category?.name === 'Liquor')
+  if (hasLiquor) activeCategory.value = 'Liquor'
 
   // Auto-load a specific draft when coming from the Edit button
   const draftId = route.query.draft

@@ -12,7 +12,7 @@ class Sale extends Model
 
     protected $fillable = [
         'branch_id', 'invoice_number', 'customer_id', 'user_id', 'subtotal',
-        'discount', 'tax', 'total', 'payment_method', 'payment_status',
+        'discount', 'tax', 'total', 'payment_method', 'card_reference', 'payment_status',
         'amount_paid', 'notes', 'sold_at', 'status', 'table_number',
     ];
 

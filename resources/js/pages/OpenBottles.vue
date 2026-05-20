@@ -51,7 +51,14 @@
                 <input v-if="b.status === 'open'" v-model.number="pourMap[b.id]" type="number" min="1" class="form-input w-24" placeholder="ml" />
               </div>
             </td>
-            <td class="table-td"><span class="badge bg-blue-100 text-blue-700">{{ b.status }}</span></td>
+            <td class="table-td">
+              <span class="badge"
+                :class="{
+                  'bg-blue-100 text-blue-700': b.status === 'open',
+                  'bg-gray-100 text-gray-600': b.status === 'closed',
+                  'bg-red-100 text-red-600': b.status === 'empty',
+                }">{{ b.status }}</span>
+            </td>
             <td class="table-td">{{ formatDate(b.opened_at) }}</td>
             <td class="table-td">
               <div class="flex items-center gap-2">

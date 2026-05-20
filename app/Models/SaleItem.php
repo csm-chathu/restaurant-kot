@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class SaleItem extends Model
 {
     protected $fillable = [
-        'sale_id', 'product_id', 'quantity', 'unit_price', 'discount', 'serving_ml', 'total',
+        'sale_id', 'product_id', 'quantity', 'unit_price', 'discount', 'serving_ml', 'open_bottle_id', 'total',
     ];
 
     protected $casts = [
@@ -25,5 +25,10 @@ class SaleItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function openBottle()
+    {
+        return $this->belongsTo(OpenBottle::class);
     }
 }

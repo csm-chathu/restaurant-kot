@@ -16,9 +16,28 @@ class OpenBottleController extends Controller
 
         $query = OpenBottle::with(['product:id,name,sku'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->when($request->product_id, fn($q) => $q->where('product_id', $request->product_id))
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->latest('opened_at');
 
         return response()->json($query->paginate($request->per_page ?? 20));
+    }
+
+    public function available(Request $request)
+    {
+        $request->validate(['product_id' => 'required|exists:products,id']);
+
+        $user = $request->user();
+
+        $bottles = OpenBottle::with(['product:id,name,base_unit'])
+            ->where('product_id', $request->product_id)
+            ->where('status', 'open')
+            ->where('remaining_volume_ml', '>', 0)
+            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->orderBy('opened_at')
+            ->get();
+
+        return response()->json($bottles);
     }
 
     public function open(Request $request)

@@ -142,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Open bottle tracking
     Route::get('/open-bottles', [OpenBottleController::class, 'index']);
+    Route::get('/open-bottles/available', [OpenBottleController::class, 'available']);
     Route::post('/open-bottles/open', [OpenBottleController::class, 'open']);
     Route::post('/open-bottles/{openBottle}/pour', [OpenBottleController::class, 'pour']);
     Route::post('/open-bottles/{openBottle}/close', [OpenBottleController::class, 'close']);

@@ -159,9 +159,17 @@ class SaleController extends Controller
                 }
             }
 
+            $invPrefix  = 'INV-' . now()->format('Ymd') . '-';
+            $lastInv    = Sale::withTrashed()
+                ->whereDate('created_at', today())
+                ->where('invoice_number', 'like', $invPrefix . '%')
+                ->max('invoice_number');
+            $invNext    = $lastInv ? ((int) substr($lastInv, -4)) + 1 : 1;
+            $invoiceNumber = $invPrefix . str_pad($invNext, 4, '0', STR_PAD_LEFT);
+
             $sale = Sale::create([
                 'branch_id'             => $request->user()->branch_id,
-                'invoice_number'        => 'INV-' . now()->format('Ymd') . '-' . str_pad(Sale::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT),
+                'invoice_number'        => $invoiceNumber,
                 'customer_id'           => $data['customer_id'] ?? null,
                 'user_id'               => $request->user()->id,
                 'subtotal'              => $subtotal,
@@ -397,7 +405,7 @@ class SaleController extends Controller
     public function update(Request $request, Sale $sale)
     {
         $this->authorizeBranch($sale->branch_id);
-        
+
         if ($sale->status !== 'draft') {
             return response()->json(['message' => 'Only draft bills can be edited'], 422);
         }
@@ -417,39 +425,60 @@ class SaleController extends Controller
             'tax_rate'                 => 'nullable|numeric|min:0|max:100',
             'table_number'             => 'nullable|string|max:50',
             'notes'                    => 'nullable|string',
+            'status'                   => 'nullable|in:draft,completed',
+            'payment_method'           => 'nullable|in:cash,card,bank_transfer,cheque,other',
+            'payment_status'           => 'nullable|in:pending,paid,partial,refunded',
+            'amount_paid'              => 'nullable|numeric|min:0',
+            'payments'                 => 'nullable|array|min:1',
+            'payments.*.payment_method'=> 'required_with:payments|in:cash,card,bank_transfer,cheque,other',
+            'payments.*.amount'        => 'required_with:payments|numeric|min:0.01',
+            'payments.*.notes'         => 'nullable|string|max:255',
         ]);
+
+        $isCompleting = ($data['status'] ?? 'draft') === 'completed';
 
         DB::beginTransaction();
         try {
-            // Update bill header
             $discount = $data['discount'] ?? 0;
             $tax      = $data['tax'] ?? 0;
             $subtotal = 0;
 
-            // Pre-validate items
             $itemData = [];
             foreach ($data['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
                 if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
+                if ($isCompleting && $product->stock_quantity < $item['quantity']) {
+                    throw new \Exception("Insufficient stock for: {$product->name}");
+                }
 
-                $qty         = $item['quantity'];
-                $unitPrice   = $item['unit_price'];
-                $itemDisc    = $item['discount'] ?? 0;
-                $lineTotal   = ($unitPrice * $qty) - $itemDisc;
-                $subtotal   += $lineTotal;
+                $qty       = $item['quantity'];
+                $unitPrice = $item['unit_price'];
+                $itemDisc  = $item['discount'] ?? 0;
+                $lineTotal = ($unitPrice * $qty) - $itemDisc;
 
                 $depositCollected = 0;
                 if ($product->bottle_deposit_required) {
-                    $depositCollected = ($item['bottle_deposit_amount'] ?? self::DEFAULT_BOTTLE_DEPOSIT) * $qty;
-                    $subtotal        += $depositCollected;
+                    $returned      = (bool) ($item['empty_bottle_returned'] ?? false);
+                    $depositAmount = (float) ($item['bottle_deposit_amount'] ?? self::DEFAULT_BOTTLE_DEPOSIT);
+                    if (!$returned && $depositAmount > 0) {
+                        $depositCollected = $depositAmount * $qty;
+                        $lineTotal       += $depositCollected;
+                    }
                 }
 
+                $subtotal  += $lineTotal;
                 $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal', 'depositCollected', 'item');
             }
 
-            $total = $subtotal - $discount + $tax;
+            $total         = $subtotal - $discount + $tax;
+            $payments      = $this->normalizePayments($data, !$isCompleting);
+            $amountPaid    = $isCompleting ? round((float) $payments->sum('amount'), 2) : 0;
+            $paymentStatus = $isCompleting
+                ? $this->resolvePaymentStatus($amountPaid, $total, $data['payment_status'] ?? null)
+                : 'pending';
+            $paymentMethod = $this->resolvePaymentMethod($payments, $data['payment_method'] ?? 'cash');
 
             if (!$request->user()->isAdmin() && !empty($data['customer_id'])) {
                 $customer = Customer::findOrFail($data['customer_id']);
@@ -458,19 +487,24 @@ class SaleController extends Controller
                 }
             }
 
-            // Update sale
             $sale->update([
-                'customer_id'   => $data['customer_id'] ?? null,
-                'subtotal'      => $subtotal,
-                'discount'      => $discount,
-                'tax'           => $tax,
-                'tax_rate'      => $data['tax_rate'] ?? 0,
-                'total'         => $total,
-                'table_number'  => $data['table_number'] ?? null,
-                'notes'         => $data['notes'] ?? null,
+                'customer_id'    => $data['customer_id'] ?? null,
+                'subtotal'       => $subtotal,
+                'discount'       => $discount,
+                'tax'            => $tax,
+                'tax_rate'       => $data['tax_rate'] ?? 0,
+                'total'          => $total,
+                'table_number'   => $data['table_number'] ?? null,
+                'notes'          => $data['notes'] ?? null,
+                'status'         => $isCompleting ? 'completed' : 'draft',
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
+                'amount_paid'    => $amountPaid,
+                'sold_at'        => $isCompleting ? now() : $sale->sold_at,
             ]);
 
-            // Delete old items and create new ones
+            $this->syncPayments($sale, $payments);
+
             $sale->items()->delete();
             foreach ($itemData as $i) {
                 SaleItem::create([
@@ -482,12 +516,53 @@ class SaleController extends Controller
                     'serving_ml' => (float) ($i['item']['serving_ml'] ?? 0),
                     'total'      => $i['lineTotal'],
                 ]);
+
+                if ($isCompleting) {
+                    $servingMl = (float) ($i['item']['serving_ml'] ?? 0);
+                    if ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
+                        $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
+                    } else {
+                        $i['product']->decrement('stock_quantity', $i['qty']);
+                        $i['product']->refresh();
+                        StockLedger::record(
+                            $i['product'], 'OUT', (float) $i['qty'],
+                            $request->user()->id, $request->user()->branch_id,
+                            'SALE', $sale->id, 'Stock reduced from sale',
+                            ['invoice_number' => $sale->invoice_number]
+                        );
+                    }
+
+                    if (($i['depositCollected'] ?? 0) > 0) {
+                        BottleDeposit::create([
+                            'branch_id'          => $request->user()->branch_id,
+                            'sale_id'            => $sale->id,
+                            'customer_id'        => $sale->customer_id,
+                            'product_id'         => $i['product']->id,
+                            'user_id'            => $request->user()->id,
+                            'type'               => 'collect',
+                            'status'             => 'collected',
+                            'quantity'           => $i['qty'],
+                            'amount_per_bottle'  => (float) ($i['item']['bottle_deposit_amount'] ?? self::DEFAULT_BOTTLE_DEPOSIT),
+                            'total_amount'       => $i['depositCollected'],
+                            'notes'              => 'Auto-collected during sale',
+                            'processed_at'       => now(),
+                        ]);
+                    }
+                }
             }
 
-            AuditLog::record('draft_updated', "Draft {$sale->invoice_number} updated — LKR {$total}", $sale);
+            if ($isCompleting) {
+                AccountingService::postSale($sale->loadMissing('items.product'));
+            }
+
+            AuditLog::record(
+                $isCompleting ? 'sale_completed' : 'draft_updated',
+                ($isCompleting ? "Draft completed: " : "Draft updated: ") . "{$sale->invoice_number} — LKR {$total}",
+                $sale
+            );
 
             DB::commit();
-            return response()->json($sale->load(['items.product', 'customer', 'user']), 200);
+            return response()->json($sale->load(['items.product', 'customer', 'user', 'payments']), 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => $e->getMessage()], 422);
@@ -497,7 +572,7 @@ class SaleController extends Controller
     public function destroy(Sale $sale)
     {
         $this->authorizeBranch($sale->branch_id);
-        if (!request()->user()->canDeleteTransactions()) {
+        if (request()->user()->role === 'cashier' || !request()->user()->canDeleteTransactions()) {
             abort(403, 'You do not have permission to delete transactions.');
         }
         DB::beginTransaction();

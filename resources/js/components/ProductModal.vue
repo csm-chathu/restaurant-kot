@@ -35,12 +35,6 @@
             </select>
           </div>
           <div>
-            <label class="form-label">Product Type *</label>
-            <select v-model="form.product_type" class="form-input" required>
-              <option v-for="t in productTypes" :key="t" :value="t">{{ t }}</option>
-            </select>
-          </div>
-          <div>
             <label class="form-label">Brand</label>
             <input v-model="form.brand" class="form-input" placeholder="e.g. Heineken, Glenfiddich" />
           </div>
@@ -122,8 +116,12 @@ import axios from 'axios'
 const props = defineProps({ product: Object, categories: Array, suppliers: Array, taxes: Array })
 const emit  = defineEmits(['close', 'saved'])
 
-const productTypes = ['Liquor', 'Beer', 'Soft Drinks', 'Food', 'Accessories']
 const unitTypes = ['Bottle', 'Can', 'Pack', 'Glass', 'Case', 'Plate', 'Serving']
+
+const CATEGORY_TYPE_MAP = {
+  'liquor': 'Liquor', 'beer': 'Beer', 'soft drinks': 'Soft Drinks',
+  'soft-drinks': 'Soft Drinks', 'food': 'Food', 'snacks': 'Food', 'accessories': 'Accessories',
+}
 
 const form = reactive({
   name: '', description: '', category_id: '', supplier_id: '', tax_setting_id: '',
@@ -150,8 +148,11 @@ async function submit() {
   saving.value = true
   error.value  = ''
   try {
+    const cat = (props.categories ?? []).find(c => c.id === form.category_id)
+    const derivedType = CATEGORY_TYPE_MAP[(cat?.name ?? '').toLowerCase()] ?? 'Accessories'
     const payload = {
       ...form,
+      product_type: derivedType,
       selling_variants: form.selling_variants ? form.selling_variants.split(',').map(v => v.trim()).filter(Boolean).join(', ') : '',
     }
     const formData = new FormData()

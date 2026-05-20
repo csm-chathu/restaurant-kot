@@ -683,7 +683,7 @@ async function loadDraft(draft) {
     activeDraftId.value   = data.id
     form.customer_id      = data.customer_id || ''
     form.payment_method   = data.payment_method || 'cash'
-    form.payment_status   = 'draft'
+    form.payment_status   = 'paid'
     form.discount         = data.discount || 0
     form.tax              = data.tax || 0
     form.tax_rate         = data.tax_rate || 0
@@ -824,7 +824,7 @@ async function submit(billStatus) {
     }
 
     let saleId
-    if (activeDraftId.value && billStatus === 'draft') {
+    if (activeDraftId.value) {
       const { data } = await axios.put(`/api/sales/${activeDraftId.value}`, payload)
       saleId = data.id ?? activeDraftId.value
     } else {

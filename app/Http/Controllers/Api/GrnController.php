@@ -37,9 +37,10 @@ class GrnController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.purchase_item_id' => 'nullable|exists:purchase_items,id',
-            'items.*.quantity_received' => 'required|numeric|min:0.001',
-            'items.*.free_quantity' => 'nullable|numeric|min:0',
-            'items.*.unit_cost' => 'required|numeric|min:0',
+            'items.*.quantity_received' => 'required|integer|min:1',
+            'items.*.free_quantity' => 'nullable|integer|min:0',
+            'items.*.unit_cost' => 'required|integer|min:1',
+            'items.*.selling_price' => 'nullable|integer|min:0',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.batch_number' => 'nullable|string|max:120',
             'items.*.expiry_date' => 'nullable|date',
@@ -94,6 +95,13 @@ class GrnController extends Controller
                 ]);
 
                 $product->increment('stock_quantity', $qty + $free);
+
+                $priceUpdate = ['purchase_price' => $unitCost];
+                if (!empty($item['selling_price'])) {
+                    $priceUpdate['selling_price'] = (int) $item['selling_price'];
+                }
+                Product::where('id', $product->id)->update($priceUpdate);
+
                 $product->refresh();
 
                 StockLedger::record(

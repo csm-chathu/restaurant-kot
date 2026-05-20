@@ -1,56 +1,74 @@
 <template>
   <div class="flex h-screen bg-gray-100 overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-64 bg-gray-900 text-white flex flex-col shrink-0">
+    <aside :class="collapsed ? 'w-16' : 'w-64'" class="bg-gray-900 text-white flex flex-col shrink-0 transition-all duration-200">
       <!-- Logo -->
-      <div class="flex items-center gap-3 px-6 py-5 border-b border-gray-800">
-        <img v-if="restaurant.logo_url" :src="restaurant.logo_url" alt="Restaurant logo" class="w-10 h-10 rounded-lg object-cover border border-gray-700" />
-        <span v-else class="text-2xl">🍻</span>
-        <div>
-          <p class="font-bold text-gold-400 text-sm leading-tight">{{ restaurant.name }}</p>
+      <div class="flex items-center gap-3 px-3 py-5 border-b border-gray-800 min-h-[72px]">
+        <img v-if="restaurant.logo_url" :src="restaurant.logo_url" alt="Restaurant logo" class="w-10 h-10 rounded-lg object-cover border border-gray-700 shrink-0" />
+        <span v-else class="text-2xl shrink-0">🍻</span>
+        <div v-if="!collapsed" class="overflow-hidden">
+          <p class="font-bold text-gold-400 text-sm leading-tight truncate">{{ restaurant.name }}</p>
           <p class="text-xs text-gray-400">POS & Inventory System</p>
         </div>
       </div>
 
       <!-- Nav -->
-      <nav class="flex-1 py-4 overflow-y-auto">
-        <div class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</div>
+      <nav class="flex-1 py-4 overflow-y-auto overflow-x-hidden">
+        <div v-if="!collapsed" class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</div>
         <router-link v-for="item in navItems" :key="item.to" :to="item.to"
-          class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-          :class="isNavActive(item.to)
-            ? 'bg-gold-600 text-white hover:bg-gold-700'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+          :title="collapsed ? item.label : ''"
+          :class="[
+            'flex items-center py-2.5 mx-2 rounded-lg text-sm transition-colors',
+            collapsed ? 'justify-center px-0' : 'gap-3 px-4',
+            isNavActive(item.to) ? 'bg-gold-600 text-white hover:bg-gold-700' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+          ]">
           <component :is="item.icon" class="w-5 h-5 shrink-0" />
-          {{ item.label }}
+          <span v-if="!collapsed">{{ item.label }}</span>
         </router-link>
 
         <!-- Admin-only section -->
         <template v-if="['admin', 'owner'].includes(auth.user?.role)">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</div>
+          <div v-if="!collapsed" class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</div>
+          <div v-else class="my-3 mx-3 border-t border-gray-700"></div>
           <router-link v-for="item in adminNavItems" :key="item.to" :to="item.to"
-            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-            :class="isNavActive(item.to)
-              ? 'bg-gold-600 text-white hover:bg-gold-700'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+            :title="collapsed ? item.label : ''"
+            :class="[
+              'flex items-center py-2.5 mx-2 rounded-lg text-sm transition-colors',
+              collapsed ? 'justify-center px-0' : 'gap-3 px-4',
+              isNavActive(item.to) ? 'bg-gold-600 text-white hover:bg-gold-700' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            ]">
             <component :is="item.icon" class="w-5 h-5 shrink-0" />
-            {{ item.label }}
+            <span v-if="!collapsed">{{ item.label }}</span>
           </router-link>
         </template>
       </nav>
 
-      <!-- User info -->
-      <div class="px-4 py-4 border-t border-gray-800">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-gold-600 flex items-center justify-center text-sm font-bold">
+      <!-- User info + collapse toggle -->
+      <div class="px-2 py-4 border-t border-gray-800 space-y-2">
+        <!-- Toggle button -->
+        <button @click="toggleCollapse"
+          :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          class="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors text-xs">
+          <ChevronDoubleLeftIcon v-if="!collapsed" class="w-4 h-4" />
+          <ChevronDoubleRightIcon v-else class="w-4 h-4" />
+          <span v-if="!collapsed">Collapse</span>
+        </button>
+
+        <div :class="collapsed ? 'justify-center' : 'gap-3'" class="flex items-center">
+          <div class="w-8 h-8 rounded-full bg-gold-600 flex items-center justify-center text-sm font-bold shrink-0">
             {{ auth.user?.name?.charAt(0) }}
           </div>
-          <div class="flex-1 min-w-0">
+          <div v-if="!collapsed" class="flex-1 min-w-0">
             <p class="text-sm font-medium text-white truncate">{{ auth.user?.name }}</p>
             <p class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</p>
           </div>
-          <button @click="doLogout" title="Logout"
+          <button v-if="!collapsed" @click="doLogout" title="Logout"
             class="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors">
             <ArrowRightOnRectangleIcon class="w-5 h-5" />
+          </button>
+          <button v-else @click="doLogout" title="Logout"
+            class="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors">
+            <ArrowRightOnRectangleIcon class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -93,6 +111,7 @@ import {
   ArrowRightOnRectangleIcon, SparklesIcon,
   UserGroupIcon, ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon, CurrencyDollarIcon, FireIcon, TableCellsIcon, ChartBarIcon, Cog6ToothIcon, BanknotesIcon,
+  ChevronDoubleLeftIcon, ChevronDoubleRightIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth      = useAuthStore()
@@ -101,17 +120,28 @@ const route     = useRoute()
 const showGuide = ref(false)
 const restaurant = ref({ name: 'Liquor Shop + Bar', logo_url: '', address: '' })
 
-const navItems = [
-  { to: '/',           label: 'Dashboard',        icon: HomeIcon },
-  { to: '/products',   label: 'Products',         icon: CubeIcon },
-  { to: '/categories', label: 'Menu Categories',  icon: TagIcon },
-  { to: '/customers',  label: 'Guests',           icon: UsersIcon },
-  { to: '/tables',     label: 'Tables',           icon: TableCellsIcon },
-  { to: '/suppliers',  label: 'Suppliers',        icon: TruckIcon },
-  { to: '/sales',      label: 'POS Billing',      icon: ShoppingCartIcon },
-  { to: '/reports',    label: 'Reports',          icon: ChartBarIcon },
-  { to: '/purchases',  label: 'Purchase Orders',   icon: ArchiveBoxIcon },
+const collapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
+function toggleCollapse() {
+  collapsed.value = !collapsed.value
+  localStorage.setItem('sidebar_collapsed', collapsed.value)
+}
+
+const allNavItems = [
+  { to: '/',           label: 'Dashboard',        icon: HomeIcon,         roles: null },
+  { to: '/products',   label: 'Products',         icon: CubeIcon,         roles: ['admin', 'owner', 'manager', 'store_keeper'] },
+  { to: '/categories', label: 'Menu Categories',  icon: TagIcon,          roles: ['admin', 'owner', 'manager'] },
+  { to: '/customers',  label: 'Guests',           icon: UsersIcon,        roles: ['admin', 'owner', 'manager'] },
+  { to: '/tables',     label: 'Tables',           icon: TableCellsIcon,   roles: ['admin', 'owner', 'manager'] },
+  { to: '/suppliers',  label: 'Suppliers',        icon: TruckIcon,        roles: ['admin', 'owner', 'manager'] },
+  { to: '/sales',      label: 'POS Billing',      icon: ShoppingCartIcon, roles: null },
+  { to: '/reports',    label: 'Reports',          icon: ChartBarIcon,     roles: ['admin', 'owner', 'manager'] },
+  { to: '/purchases',  label: 'Purchase Orders',  icon: ArchiveBoxIcon,   roles: ['admin', 'owner', 'manager', 'store_keeper'] },
 ]
+
+const navItems = computed(() => {
+  const role = auth.user?.role
+  return allNavItems.filter(item => !item.roles || item.roles.includes(role))
+})
 
 const adminNavItems = [
   { to: '/price-matrix', label: 'Price Matrix',   icon: SparklesIcon },

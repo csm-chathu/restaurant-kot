@@ -42,10 +42,11 @@
           <thead class="bg-gray-50">
             <tr>
               <th class="table-th">Product</th>
-              <th class="table-th text-right">PO Qty</th>
+              <th class="table-th">PO Qty</th>
               <th class="table-th text-right">Receive Qty</th>
               <th class="table-th text-right">Free Qty</th>
               <th class="table-th text-right">Unit Cost</th>
+              <th class="table-th text-right">Selling Price</th>
               <th class="table-th">Batch</th>
               <th class="table-th">Expiry</th>
             </tr>
@@ -53,18 +54,22 @@
           <tbody class="divide-y divide-gray-100">
             <tr v-for="(item, i) in form.items" :key="i" class="hover:bg-amber-50/30">
               <td class="table-td font-medium text-gray-800">{{ item.product_name }}</td>
-              <td class="table-td text-right text-gray-500">{{ item.po_quantity }}</td>
+              <td class="table-td text-gray-500">{{ item.po_quantity }}</td>
               <td class="table-td text-right">
-                <input v-model.number="item.quantity_received" type="number" min="0" step="0.001"
-                  class="form-input text-right w-24" />
+                <input v-model.number="item.quantity_received" type="number" min="1" step="1"
+                  class="form-input text-right w-24" @keydown="blockDecimal" @input="forceInt(item, 'quantity_received', 1)" />
               </td>
               <td class="table-td text-right">
-                <input v-model.number="item.free_quantity" type="number" min="0" step="0.001"
-                  class="form-input text-right w-24" />
+                <input v-model.number="item.free_quantity" type="number" min="0" step="1"
+                  class="form-input text-right w-24" @keydown="blockDecimal" @input="forceInt(item, 'free_quantity', 0)" />
               </td>
               <td class="table-td text-right">
-                <input v-model.number="item.unit_cost" type="number" min="0" step="0.01"
-                  class="form-input text-right w-28" />
+                <input v-model.number="item.unit_cost" type="number" min="1" step="1"
+                  class="form-input text-right w-28" @keydown="blockDecimal" @input="forceInt(item, 'unit_cost', 1)" />
+              </td>
+              <td class="table-td text-right">
+                <input v-model.number="item.selling_price" type="number" min="1" step="1"
+                  class="form-input text-right w-28" @keydown="blockDecimal" @input="forceInt(item, 'selling_price', 1)" />
               </td>
               <td class="table-td"><input v-model="item.batch_number" class="form-input w-28" /></td>
               <td class="table-td"><input v-model="item.expiry_date" type="date" class="form-input" /></td>
@@ -130,6 +135,15 @@ const form = reactive({
   items: [],
 })
 
+function blockDecimal(e) {
+  if (e.key === '.' || e.key === ',' || e.key === 'e' || e.key === 'E') e.preventDefault()
+}
+
+function forceInt(item, field, min) {
+  const v = Math.floor(Number(item[field]))
+  item[field] = isNaN(v) || v < min ? min : v
+}
+
 function formatDate(value) {
   return new Date(value).toLocaleDateString('en-LK')
 }
@@ -158,6 +172,7 @@ async function onPurchaseChange() {
       quantity_received: i.quantity,
       free_quantity:     0,
       unit_cost:         i.unit_cost,
+      selling_price:     i.product?.selling_price ?? 0,
       batch_number:      '',
       expiry_date:       '',
     }))

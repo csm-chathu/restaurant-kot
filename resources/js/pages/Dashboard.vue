@@ -2,7 +2,7 @@
   <div class="space-y-5">
 
     <!-- KPI cards -->
-    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+    <div v-if="!isCashier" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
       <div v-for="card in kpiCards" :key="card.label"
         class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex flex-col gap-1">
         <div class="flex items-center justify-between">
@@ -15,7 +15,7 @@
     </div>
 
     <!-- Row 2: Revenue trend + Monthly bar -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div v-if="!isCashier" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
       <!-- Revenue trend (30 days) -->
       <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -69,7 +69,7 @@
     </div>
 
     <!-- Row 3: Payment methods + Category breakdown + Hourly pattern -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div v-if="!isCashier" class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
       <!-- Payment methods donut -->
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -196,6 +196,7 @@
 import { ref, computed, defineComponent, h } from 'vue'
 import axios from 'axios'
 import { onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { Line, Bar, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -225,6 +226,10 @@ const ChartEmpty = defineComponent({
     ])
   },
 })
+
+// ── Auth ──────────────────────────────────────────────
+const auth      = useAuthStore()
+const isCashier = computed(() => auth.user?.role === 'cashier')
 
 // ── Data ──────────────────────────────────────────────
 const data   = ref({})

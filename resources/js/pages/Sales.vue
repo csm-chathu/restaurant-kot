@@ -147,7 +147,7 @@
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                       <PrinterIcon class="w-3.5 h-3.5" /> Receipt
                     </router-link>
-                    <button @click="del(s)"
+                    <button v-if="!isCashier" @click="del(s)"
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
                       <TrashIcon class="w-3.5 h-3.5" />
                     </button>
@@ -193,11 +193,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 import {
   PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
   ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
   ChartBarIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, PencilSquareIcon,
 } from '@heroicons/vue/24/outline'
+
+const auth         = useAuthStore()
+const isCashier    = computed(() => auth.user?.role === 'cashier')
 
 const sales        = ref({ data: [] })
 const search       = ref('')

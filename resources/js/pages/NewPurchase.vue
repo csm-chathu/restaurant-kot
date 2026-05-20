@@ -16,17 +16,45 @@
               <label class="form-label col-span-2 mb-0">Price</label>
               <span class="col-span-1"></span>
             </div>
-            <div class="grid grid-cols-12 gap-2 items-center">
-              <select v-model="item.product_id" class="form-input col-span-7">
-                <option value="">Select product…</option>
-                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} (SKU: {{ p.sku }})</option>
-              </select>
-              <input v-model.number="item.quantity" type="number" min="1" placeholder="Qty" class="form-input col-span-2" @change="recalc" />
-              <input v-model.number="item.unit_cost" type="number" min="0" placeholder="Cost" class="form-input col-span-2" @change="recalc" />
-              <button @click="form.items.splice(i,1); recalc()" class="col-span-1 text-red-400 hover:text-red-600 text-lg">✕</button>
+            <div class="grid grid-cols-12 gap-2 items-start">
+              <!-- Combobox -->
+              <div class="col-span-7 relative" @keydown.escape="closeDropdown(i)">
+                <input
+                  v-model="productSearches[i]"
+                  type="text"
+                  placeholder="Search product…"
+                  class="form-input w-full"
+                  autocomplete="off"
+                  @input="onSearchInput(i)"
+                  @focus="openDropdown(i)"
+                  @blur="onBlur(i)"
+                />
+                <ul
+                  v-if="showDropdown[i] && filteredProducts(i).length"
+                  class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-52 overflow-y-auto text-sm"
+                >
+                  <li
+                    v-for="p in filteredProducts(i)"
+                    :key="p.id"
+                    class="px-3 py-2 cursor-pointer hover:bg-amber-50 flex justify-between items-center"
+                    @mousedown.prevent="selectProduct(i, p)"
+                  >
+                    <span class="font-medium text-gray-800">{{ p.name }}</span>
+                    <span class="text-xs text-gray-400 ml-2">{{ p.sku }}</span>
+                  </li>
+                </ul>
+                <p v-if="showDropdown[i] && productSearches[i] && !filteredProducts(i).length"
+                   class="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow mt-1 px-3 py-2 text-sm text-gray-400">
+                  No products found
+                </p>
+              </div>
+
+              <input v-model.number="item.quantity" type="number" min="1" placeholder="Qty" class="form-input col-span-2" @input="recalc" />
+              <input v-model.number="item.unit_cost" type="number" min="0" placeholder="Cost" class="form-input col-span-2" @input="recalc" />
+              <button @click="removeItem(i)" class="col-span-1 text-red-400 hover:text-red-600 text-lg mt-1">✕</button>
             </div>
           </div>
-          <button @click="form.items.push({product_id:'',quantity:1,unit_cost:0})" class="btn-secondary text-sm mt-2">+ Add Item</button>
+          <button @click="addItem" class="btn-secondary text-sm mt-2">+ Add Item</button>
         </div>
       </div>
 
@@ -76,15 +104,62 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
-const router   = useRouter()
+const router    = useRouter()
 const products  = ref([])
 const suppliers = ref([])
 const saving    = ref(false)
 const error     = ref('')
 
+const productSearches = ref([''])
+const showDropdown    = ref([false])
+
 const form = reactive({ supplier_id:'', status:'received', tax:0, notes:'', items:[{product_id:'',quantity:1,unit_cost:0}] })
 
-const subtotal = computed(() => form.items.reduce((a,i) => a + (i.unit_cost * i.quantity), 0))
+function filteredProducts(i) {
+  const q = (productSearches.value[i] ?? '').toLowerCase().trim()
+  if (!q) return products.value.slice(0, 30)
+  return products.value.filter(p => p.name.toLowerCase().includes(q) || (p.sku ?? '').toLowerCase().includes(q))
+}
+
+function onSearchInput(i) {
+  showDropdown.value[i] = true
+  form.items[i].product_id = ''
+}
+
+function openDropdown(i) {
+  showDropdown.value[i] = true
+}
+
+function closeDropdown(i) {
+  showDropdown.value[i] = false
+}
+
+function onBlur(i) {
+  setTimeout(() => { showDropdown.value[i] = false }, 150)
+}
+
+function selectProduct(i, p) {
+  form.items[i].product_id = p.id
+  form.items[i].unit_cost  = p.purchase_price ?? 0
+  productSearches.value[i] = p.name
+  showDropdown.value[i]    = false
+  recalc()
+}
+
+function addItem() {
+  form.items.push({ product_id:'', quantity:1, unit_cost:0 })
+  productSearches.value.push('')
+  showDropdown.value.push(false)
+}
+
+function removeItem(i) {
+  form.items.splice(i, 1)
+  productSearches.value.splice(i, 1)
+  showDropdown.value.splice(i, 1)
+  recalc()
+}
+
+const subtotal = computed(() => form.items.reduce((a, i) => a + (i.unit_cost * i.quantity), 0))
 const total    = computed(() => subtotal.value + (form.tax || 0))
 function recalc() {}
 

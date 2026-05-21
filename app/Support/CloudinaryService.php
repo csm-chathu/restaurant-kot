@@ -14,10 +14,21 @@ class CloudinaryService
 
     public static function uploadProductImage(UploadedFile $file): array
     {
+        $folder = (string) config('services.cloudinary.folder', 'products');
+
+        return self::upload($file, $folder);
+    }
+
+    public static function uploadLogoImage(UploadedFile $file): array
+    {
+        return self::upload($file, 'logos');
+    }
+
+    private static function upload(UploadedFile $file, string $folder): array
+    {
         $cloudName = (string) config('services.cloudinary.cloud_name');
         $apiKey = (string) config('services.cloudinary.api_key');
         $apiSecret = (string) config('services.cloudinary.api_secret');
-        $folder = (string) config('services.cloudinary.folder', 'products');
 
         if (!$cloudName || !$apiKey || !$apiSecret) {
             throw new \RuntimeException('Cloudinary credentials are not configured.');

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Support\CloudinaryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class RestaurantSettingController extends Controller
 {
@@ -21,7 +21,7 @@ class RestaurantSettingController extends Controller
             'city' => $branch->city,
             'country' => $branch->country,
             'logo_path' => $branch->logo_path,
-            'logo_url' => $branch->logo_path ? asset('storage/' . $branch->logo_path) : null,
+            'logo_url' => $branch->logo_path,
         ]);
     }
 
@@ -41,14 +41,13 @@ class RestaurantSettingController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            if ($branch->logo_path) {
-                Storage::disk('public')->delete($branch->logo_path);
-            }
-            $data['logo_path'] = $request->file('logo')->store('restaurant', 'public');
+            CloudinaryService::destroyImage($branch->logo_public_id);
+            $uploaded = CloudinaryService::uploadLogoImage($request->file('logo'));
+            $data['logo_path'] = $uploaded['url'];
+            $data['logo_public_id'] = $uploaded['public_id'];
         }
 
-        unset($data['branch_id']);
-        unset($data['logo']);
+        unset($data['branch_id'], $data['logo']);
 
         $branch->update($data);
 
@@ -62,7 +61,7 @@ class RestaurantSettingController extends Controller
                 'city' => $branch->city,
                 'country' => $branch->country,
                 'logo_path' => $branch->logo_path,
-                'logo_url' => $branch->logo_path ? asset('storage/' . $branch->logo_path) : null,
+                'logo_url' => $branch->logo_path,
             ],
         ]);
     }

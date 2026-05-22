@@ -11,15 +11,17 @@
         <span class="text-sm font-medium text-gray-700">{{ sale?.invoice_number }}</span>
       </div>
       <div class="flex gap-2">
-        <button @click="directPrint" :disabled="directPrinting || loading || !sale"
+        <button v-if="!isElectron" @click="directPrint" :disabled="directPrinting || loading || !sale"
           class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
           <ArrowPathIcon v-if="directPrinting" class="w-4 h-4 animate-spin" />
           <PrinterIcon v-else class="w-4 h-4" />
           {{ directPrinting ? 'Printing...' : 'Direct Print' }}
         </button>
-        <button @click="printReceipt"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
-          <PrinterIcon class="w-4 h-4" /> Print Receipt
+        <button @click="printReceipt" :disabled="directPrinting || loading || !sale"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
+          <ArrowPathIcon v-if="isElectron && directPrinting" class="w-4 h-4 animate-spin" />
+          <PrinterIcon v-else class="w-4 h-4" />
+          {{ isElectron && directPrinting ? 'Printing...' : 'Print Receipt' }}
         </button>
       </div>
     </div>
@@ -222,6 +224,7 @@ const restaurant     = ref({ name: '', address: '', city: '', country: '' })
 const preferredPrinter = import.meta.env.VITE_THERMAL_PRINTER ?? ''
 const directPrinting = ref(false)
 const directPrintError = ref('')
+const isElectron = ref(false)
 
 const receiptCompanyName = computed(() => (restaurant.value.name || appName))
 const receiptAddress = computed(() => {
@@ -272,7 +275,24 @@ function drawBarcode(svg, text) {
   })
 }
 
-function printReceipt() { window.print() }
+async function printReceipt() {
+  if (window.electronAPI?.printReceipt) {
+    directPrintError.value = ''
+    directPrinting.value = true
+    try {
+      const result = await window.electronAPI.printReceipt('pos', {
+        pageSize: { width: 76000, height: 500000 },
+      })
+      if (!result?.success) throw new Error(result?.error || 'Print failed')
+    } catch (err) {
+      directPrintError.value = err.message || 'Print failed.'
+    } finally {
+      directPrinting.value = false
+    }
+  } else {
+    window.print()
+  }
+}
 
 function qzScriptLoaded() {
   return typeof window !== 'undefined' && !!window.qz
@@ -398,6 +418,8 @@ watch(barcodeSvg, (svg) => {
 })
 
 onMounted(async () => {
+  isElectron.value = typeof window.electronAPI?.printReceipt === 'function'
+
   try {
     const [saleRes, settingsRes] = await Promise.all([
       axios.get(`/api/sales/${route.params.id}`),

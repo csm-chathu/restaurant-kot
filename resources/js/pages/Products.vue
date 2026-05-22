@@ -203,52 +203,25 @@ function createBarcodeSvg(value) {
   return svg.outerHTML
 }
 
-function printProductBarcode(product) {
-  if (!product?.sku) return
-  // Use custom barcode if set, otherwise fall back to SKU
+function buildBarcodeLabelHtml(product) {
   const barcodeValue = product.barcode?.trim() || product.sku
-  const popup = window.open('', '_blank', 'width=150,height=120')
-  if (!popup) {
-    alert('Popup blocked. Allow popups to print barcode labels.')
-    return
-  }
+  const barcodeSvg   = createBarcodeSvg(barcodeValue)
+  const safeName     = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const safeBarcode  = barcodeValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-  const barcodeSvg = createBarcodeSvg(barcodeValue)
-  const safeName  = (product.name ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const safeSku   = product.sku.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const safeBarcode = barcodeValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-  popup.document.write(`<!doctype html>
+  return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Label - ${safeSku}</title>
   <style>
     @page { size: 30mm 20mm; margin: 0; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 0;
-      font-family: 'Courier New', monospace;
-      background: #fff;
-      width: 30mm;
-    }
-    .label {
-      width: 30mm;
-      height: 20mm;
-      padding: 0.5mm;
-      text-align: center;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-    }
-    .shop  { display: none; }
-    .name  { font-size: 3pt; font-weight: bold; margin: 0.2mm 0; word-break: break-word; line-height: 1; }
-    .meta  { display: none; }
-    svg    { width: 100%; height: 15mm; display: block; flex-grow: 1; }
-    .sku   { font-size: 3pt; letter-spacing: 0.5px; margin: 0.2mm 0; line-height: 1; }
-    .price { display: none; }
-    hr     { display: none; }
+    body { margin:0; padding:0; font-family:'Courier New',monospace; background:#fff; width:30mm; }
+    .label { width:30mm; height:20mm; padding:0.5mm; text-align:center; overflow:hidden;
+             display:flex; flex-direction:column; justify-content:flex-start; }
+    .name  { font-size:3pt; font-weight:bold; margin:0.2mm 0; word-break:break-word; line-height:1; }
+    svg    { width:100%; height:15mm; display:block; flex-grow:1; }
+    .sku   { font-size:3pt; letter-spacing:0.5px; margin:0.2mm 0; line-height:1; }
   </style>
 </head>
 <body>
@@ -257,9 +230,28 @@ function printProductBarcode(product) {
     ${barcodeSvg}
     <div class="sku">${safeBarcode}</div>
   </div>
-  <script>window.onload = function(){ window.print(); }<\/script>
 </body>
-</html>`)
+</html>`
+}
+
+function printProductBarcode(product) {
+  if (!product?.sku) return
+
+  const html = buildBarcodeLabelHtml(product)
+
+  // Electron: silent print directly to barcode printer via IPC
+  if (window.electronAPI?.printBarcode) {
+    window.electronAPI.printBarcode(html)
+    return
+  }
+
+  // Browser fallback: popup with auto-print
+  const popup = window.open('', '_blank', 'width=150,height=120')
+  if (!popup) {
+    alert('Popup blocked. Allow popups to print barcode labels.')
+    return
+  }
+  popup.document.write(html.replace('</body>', '<script>window.onload=function(){window.print()}<\/script></body>'))
   popup.document.close()
 }
 

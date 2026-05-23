@@ -20,8 +20,7 @@ class RestaurantSettingController extends Controller
             'address' => $branch->address,
             'city' => $branch->city,
             'country' => $branch->country,
-            'logo_path' => $branch->logo_path,
-            'logo_url' => $branch->logo_path,
+            'logo_url' => $branch->logo_url,
         ]);
     }
 
@@ -60,8 +59,7 @@ class RestaurantSettingController extends Controller
                 'address' => $branch->address,
                 'city' => $branch->city,
                 'country' => $branch->country,
-                'logo_path' => $branch->logo_path,
-                'logo_url' => $branch->logo_path,
+                'logo_url' => $branch->logo_url,
             ],
         ]);
     }

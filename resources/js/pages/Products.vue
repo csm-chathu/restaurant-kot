@@ -79,14 +79,18 @@
               </td>
               <td class="table-td sticky right-0 bg-white border-l border-gray-200">
                 <div class="flex items-center gap-2 whitespace-nowrap">
-                  <button @click="reprintBarcode(p)"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
-                    <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+                  <button @click="reprintBarcode(p)" :disabled="printingId === p.id"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-60">
+                    <svg v-if="printingId === p.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                    <svg v-else class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
                       <rect x="1" y="4" width="1.5" height="16" rx="0.5"/><rect x="4" y="4" width="3" height="16" rx="0.5"/>
                       <rect x="9" y="4" width="1.5" height="16" rx="0.5"/><rect x="12" y="4" width="3" height="16" rx="0.5"/>
                       <rect x="17" y="4" width="1.5" height="16" rx="0.5"/><rect x="20" y="4" width="2.5" height="16" rx="0.5"/>
                     </svg>
-                    Print
+                    {{ printingId === p.id ? 'Printing…' : 'Print' }}
                   </button>
                   <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                     <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
@@ -161,6 +165,7 @@ const showModal     = ref(false)
 const editing       = ref(null)
 const loading       = ref(false)
 const zoomedImage   = ref(null)
+const printingId    = ref(null)
 const productTypes  = ['Liquor', 'Beer', 'Soft Drinks', 'Food', 'Accessories']
 
 let debounceTimer = null
@@ -195,9 +200,9 @@ function createBarcodeSvg(value) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   JsBarcode(svg, value, {
     format: 'CODE128',
-    width: 1.8,
-    height: 56,
-    margin: 0,
+    width: 1.3,
+    height: 44,
+    margin: 6,
     displayValue: false,
   })
   return svg.outerHTML
@@ -217,18 +222,18 @@ function buildBarcodeLabelHtml(product) {
     @page { size: 30mm 20mm; margin: 0; }
     * { box-sizing: border-box; }
     body { margin:0; padding:0; font-family:'Courier New',monospace; background:#fff; width:30mm; }
-    .label { width:30mm; height:20mm; padding:0.5mm; text-align:center; overflow:hidden;
+    .label { width:30mm; height:20mm; padding:0.5mm; padding-top:1.5mm; text-align:center; overflow:hidden;
              display:flex; flex-direction:column; justify-content:flex-start; }
-    .name  { font-size:3pt; font-weight:bold; margin:0.2mm 0; word-break:break-word; line-height:1; }
-    svg    { width:100%; height:15mm; display:block; flex-grow:1; }
-    .sku   { font-size:3pt; letter-spacing:0.5px; margin:0.2mm 0; line-height:1; }
+    .name  { font-size:6.5pt; font-weight:bold; margin:0.3mm 0; word-break:break-word; line-height:1; }
+    svg    { width:100%; height:12mm; display:block; margin-top:0.5mm; }
+    .sku   { font-size:6pt; letter-spacing:0.5px; margin:0.3mm 0; line-height:1; }
   </style>
 </head>
 <body>
   <div class="label">
     <div class="name">${safeName}</div>
     ${barcodeSvg}
-    <div class="sku">${safeBarcode}</div>
+    <div class="sku">SKU: ${safeBarcode}</div>
   </div>
 </body>
 </html>`
@@ -256,7 +261,9 @@ function printProductBarcode(product) {
 }
 
 function reprintBarcode(product) {
+  printingId.value = product.id
   printProductBarcode(product)
+  setTimeout(() => { printingId.value = null }, 3000)
 }
 
 async function deleteProduct(p) {

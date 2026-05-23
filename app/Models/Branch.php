@@ -17,6 +17,21 @@ class Branch extends Model
         'is_active' => 'boolean',
     ];
 
+    public function getLogoUrlAttribute(): ?string
+    {
+        $path = $this->logo_path;
+
+        if (!$path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return asset('storage/' . ltrim($path, '/'));
+    }
+
     public function users()
     {
         return $this->hasMany(User::class);

@@ -42,7 +42,7 @@
         <!-- ── HEADER ── -->
         <div style="text-align:center; margin-bottom:6px;">
           <div v-if="restaurant.logo_url" style="margin-bottom:5px;">
-            <img :src="restaurant.logo_url" alt="Logo"
+            <img :src="restaurant.logo_url" alt="Logo" class="receipt-logo"
               style="max-width:120px; max-height:60px; width:auto; height:auto; display:inline-block; object-fit:contain;" />
           </div>
           <div style="font-size:15px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">
@@ -180,21 +180,15 @@
 
         <hr class="receipt-divider" />
 
-        <!-- ── BARCODE-STYLE INVOICE NUMBER ── -->
-        <div style="text-align:center; margin:6px 0 2px;">
-          <!-- Visual barcode bars using CSS — works on all printers -->
-          <div class="barcode-bars" :data-value="sale.invoice_number">
-            <svg ref="barcodeSvg" style="display:block; width:100%; max-width:100%; height:34px; margin:0 auto;"></svg>
-          </div>
-          <div style="font-size:10px; letter-spacing:2px; margin-top:2px; font-weight:600;">{{ sale.invoice_number }}</div>
-        </div>
-
-        <hr class="receipt-divider" />
-
         <!-- ── FOOTER ── -->
         <div style="text-align:center; font-size:10px; line-height:1.6;">
           <div style="font-weight:bold;">*** Thank You! Come Again ***</div>
           <div style="font-size:10px; color:#222;">{{ formatDate(sale.sold_at) }}</div>
+          <div style="font-size:10px; font-weight:600; margin-top:3px; letter-spacing:0.5px;">www.lumac.lk</div>
+          <div v-if="whatsappQr" style="margin-top:6px; display:flex; flex-direction:column; align-items:center; gap:2px;">
+            <img :src="whatsappQr" alt="WhatsApp QR" class="receipt-qr" style="width:72px; height:72px; display:block;" />
+            <div style="font-size:11px; font-weight:bold; color:#222;">Scan to WhatsApp us</div>
+          </div>
         </div>
 
       </div>
@@ -209,22 +203,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-import JsBarcode from 'jsbarcode'
 import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import QRCode from 'qrcode'
 
 const route          = useRoute()
 const sale           = ref(null)
 const loading        = ref(true)
-const barcodeSvg     = ref(null)
 const appName        = import.meta.env.VITE_APP_NAME ?? 'Liquor Shop POS'
 const restaurant     = ref({ name: '', address: '', city: '', country: '' })
 const preferredPrinter = import.meta.env.VITE_THERMAL_PRINTER ?? ''
 const directPrinting = ref(false)
 const directPrintError = ref('')
 const isElectron = ref(false)
+const whatsappQr = ref('')
 
 const receiptCompanyName = computed(() => (restaurant.value.name || appName))
 const receiptAddress = computed(() => {
@@ -258,22 +252,6 @@ function formatTime(d) {
   return new Date(d).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
 }
 
-// Render a standards-compliant barcode for reliable handheld scanning.
-function drawBarcode(svg, text) {
-  if (!svg || !text) return
-  const value = String(text).trim().toUpperCase().replace(/[^0-9A-Z\-\.\ \$\/\+%]/g, '')
-  if (!value) return
-
-  JsBarcode(svg, value, {
-    format: 'CODE128',
-    width: 2.2,
-    height: 36,
-    margin: 12,
-    background: '#ffffff',
-    lineColor: '#000000',
-    displayValue: false,
-  })
-}
 
 async function printReceipt() {
   if (window.electronAPI?.printReceipt) {
@@ -413,12 +391,12 @@ async function directPrint() {
   }
 }
 
-watch(barcodeSvg, (svg) => {
-  if (svg && sale.value) drawBarcode(svg, sale.value.invoice_number)
-})
-
 onMounted(async () => {
   isElectron.value = typeof window.electronAPI?.printReceipt === 'function'
+
+  QRCode.toDataURL('https://wa.me/94764643050', { width: 144, margin: 1, color: { dark: '#000', light: '#fff' } })
+    .then(url => { whatsappQr.value = url })
+    .catch(() => {})
 
   try {
     const [saleRes, settingsRes] = await Promise.all([
@@ -429,7 +407,6 @@ onMounted(async () => {
     sale.value = saleRes.data
     restaurant.value = settingsRes.data || {}
     await nextTick()
-    drawBarcode(barcodeSvg.value, saleRes.data.invoice_number)
   } catch {
     sale.value = null
   } finally {
@@ -527,10 +504,17 @@ onMounted(async () => {
   }
 
   /* Keep logo visible when printing */
-  #receipt-wrapper img {
+  #receipt-wrapper img.receipt-logo {
     display: inline-block !important;
     max-width: 120px !important;
     max-height: 60px !important;
+  }
+
+  /* QR code print */
+  #receipt-wrapper img.receipt-qr {
+    display: block !important;
+    width: 72px !important;
+    height: 72px !important;
   }
 
   @page {

@@ -37,7 +37,7 @@ Route::get('/public/settings', function () {
     $branch = \App\Models\Branch::first();
     return response()->json([
         'name'     => $branch?->name ?? config('app.name'),
-        'logo_url' => $branch?->logo_path ? asset('storage/' . $branch->logo_path) : null,
+        'logo_url' => $branch?->logo_url,
     ]);
 });
 

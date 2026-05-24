@@ -200,9 +200,9 @@ function createBarcodeSvg(value) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   JsBarcode(svg, value, {
     format: 'CODE128',
-    width: 1.3,
-    height: 44,
-    margin: 6,
+    width: 1.2,
+    height: 28,
+    margin: 2,
     displayValue: false,
   })
   return svg.outerHTML
@@ -220,13 +220,12 @@ function buildBarcodeLabelHtml(product) {
   <meta charset="utf-8">
   <style>
     @page { size: 30mm 20mm; margin: 0; }
-    * { box-sizing: border-box; }
-    body { margin:0; padding:0; font-family:'Courier New',monospace; background:#fff; width:30mm; }
-    .label { width:30mm; height:20mm; padding:0.5mm; padding-top:1.5mm; text-align:center; overflow:hidden;
-             display:flex; flex-direction:column; justify-content:flex-start; }
-    .name  { font-size:6.5pt; font-weight:bold; margin:0.3mm 0; word-break:break-word; line-height:1; }
-    svg    { width:100%; height:12mm; display:block; margin-top:0.5mm; }
-    .sku   { font-size:6pt; letter-spacing:0.5px; margin:0.3mm 0; line-height:1; }
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family:'Courier New',monospace; background:#fff; }
+    .label { width:30mm; height:20mm; overflow:hidden; text-align:center; padding-top:6pt; }
+    .name  { font-size:8pt; font-weight:900; line-height:1.2; word-break:break-word; }
+    svg    { width:100%; display:block; margin-top:2pt; }
+    .sku   { font-size:7pt; font-weight:700; letter-spacing:0.5px; margin-top:1pt; }
   </style>
 </head>
 <body>

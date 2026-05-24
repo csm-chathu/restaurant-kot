@@ -668,16 +668,22 @@ function isInBill(productId) {
 }
 
 function getBillQty(productId) {
-  return form.items.find(i => i.product_id == productId)?.quantity ?? 0
+  return form.items.filter(i => i.product_id == productId).reduce((sum, i) => sum + (i.quantity || 0), 0)
 }
+
+const LIQUOR_TYPES = ['liquor', 'whisky', 'vodka']
 
 function addProductFromGrid(product) {
   if (product.stock_quantity < 1) return
-  const existing = form.items.find(i => i.product_id == product.id)
-  if (existing) {
-    existing.quantity++
-    recalcItem(existing)
-    return
+  const isLiquor = LIQUOR_TYPES.includes(String(product?.product_type ?? '').toLowerCase())
+  // Liquor products always get a new line so each shot can have its own serving_ml
+  if (!isLiquor) {
+    const existing = form.items.find(i => i.product_id == product.id)
+    if (existing) {
+      existing.quantity++
+      recalcItem(existing)
+      return
+    }
   }
   const item = newItem()
   item.product_id     = product.id

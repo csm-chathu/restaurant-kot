@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import NProgress from 'nprogress'
+import 'nprogress/nprogress.css'
+
+NProgress.configure({ showSpinner: false, speed: 300, minimum: 0.1 })
 
 const routes = [
     {
@@ -49,9 +53,12 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
+    NProgress.start()
     const auth = useAuthStore()
     if (to.meta.requiresAuth && !auth.token) return '/login'
     if (to.meta.guest && auth.token) return '/'
 })
+
+router.afterEach(() => { NProgress.done() })
 
 export default router

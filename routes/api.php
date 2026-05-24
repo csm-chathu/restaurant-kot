@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\SupplierReturnController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TaxSettingController;
+use App\Http\Controllers\Api\CashierShiftController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
@@ -66,6 +67,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products',   ProductController::class);
     Route::apiResource('customers',  CustomerController::class);
     Route::apiResource('tables',     TableController::class);
+    Route::get('/cashier-shifts/current',   [CashierShiftController::class, 'current']);
+    Route::post('/cashier-shifts/open',     [CashierShiftController::class, 'open']);
+    Route::post('/cashier-shifts/close',    [CashierShiftController::class, 'close']);
+    Route::post('/cashier-shifts/cash-out', [CashierShiftController::class, 'cashOut']);
+    Route::get('/cashier-shifts/cash-outs', [CashierShiftController::class, 'cashOuts']);
+
     Route::apiResource('sales',      SaleController::class)->except(['update']);
     Route::put('/sales/{sale}',      [SaleController::class, 'update']); // Draft bill updates
     Route::apiResource('purchases',  PurchaseController::class)->except(['update']);

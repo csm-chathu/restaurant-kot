@@ -81,6 +81,19 @@
         <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
         <div class="flex items-center gap-3 text-sm text-gray-500">
           <span>{{ currentDate }}</span>
+          <button @click="openShiftModal"
+            :class="currentShift
+              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+              : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors">
+            <span :class="currentShift ? 'bg-green-500' : 'bg-red-500'" class="w-2 h-2 rounded-full"></span>
+            {{ currentShift ? 'Shift Open' : 'Open Shift' }}
+          </button>
+          <button v-if="currentShift" @click="showCashOutModal = true"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 text-xs font-semibold transition-colors">
+            <BanknotesIcon class="w-3.5 h-3.5" />
+            Cash Out
+          </button>
           <button @click="showGuide = true"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 text-xs font-semibold transition-colors">
             <span class="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold leading-none">?</span>
@@ -97,6 +110,8 @@
   </div>
 
   <GettingStarted v-model="showGuide" />
+  <ShiftModal v-if="showShiftModal" :current-shift="currentShift" @close="showShiftModal = false" @shifted="onShifted" />
+  <CashOutModal v-if="showCashOutModal" @close="showCashOutModal = false" @saved="showCashOutModal = false" />
 </template>
 
 <script setup>
@@ -105,6 +120,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import axios from 'axios'
 import GettingStarted from '@/components/GettingStarted.vue'
+import ShiftModal from '@/components/ShiftModal.vue'
+import CashOutModal from '@/components/CashOutModal.vue'
 import {
   HomeIcon, CubeIcon, TagIcon, UsersIcon,
   TruckIcon, ShoppingCartIcon, ArchiveBoxIcon,
@@ -117,7 +134,10 @@ import {
 const auth      = useAuthStore()
 const router    = useRouter()
 const route     = useRoute()
-const showGuide = ref(false)
+const showGuide      = ref(false)
+const showShiftModal = ref(false)
+const showCashOutModal = ref(false)
+const currentShift   = ref(null)
 const restaurant = ref({ name: 'Liquor Shop + Bar', logo_url: '', address: '' })
 
 const collapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
@@ -206,6 +226,11 @@ async function loadRestaurant() {
   }
 }
 
+async function openShiftModal() {
+  await loadCurrentShift()
+  showShiftModal.value = true
+}
+
 function isNavActive(targetPath) {
   if (targetPath === '/') {
     return route.path === '/'
@@ -213,5 +238,18 @@ function isNavActive(targetPath) {
   return route.path === targetPath || route.path.startsWith(`${targetPath}/`)
 }
 
-onMounted(loadRestaurant)
+async function loadCurrentShift() {
+  try {
+    const { data } = await axios.get('/api/cashier-shifts/current')
+    currentShift.value = (data && data.id) ? data : null
+  } catch {
+    currentShift.value = null
+  }
+}
+
+function onShifted(shift) {
+  currentShift.value = shift
+}
+
+onMounted(() => { loadRestaurant(); loadCurrentShift() })
 </script>

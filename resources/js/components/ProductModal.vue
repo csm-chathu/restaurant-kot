@@ -27,29 +27,29 @@
               <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Supplier</label>
             <select v-model="form.supplier_id" class="form-input">
               <option value="">— None —</option>
               <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Brand</label>
             <input v-model="form.brand" class="form-input" placeholder="e.g. Heineken, Glenfiddich" />
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Unit Type</label>
             <select v-model="form.unit_type" class="form-input">
               <option value="">— Select —</option>
               <option v-for="u in unitTypes" :key="u" :value="u">{{ u }}</option>
             </select>
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Base Unit</label>
             <input v-model="form.base_unit" class="form-input" placeholder="e.g. 750ml, 24 bottles, 1 kg" />
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Selling Variants</label>
             <input v-model="form.selling_variants" class="form-input" placeholder="e.g. 30ml, 50ml, 750ml" />
           </div>
@@ -60,17 +60,17 @@
               <option v-for="tax in taxes" :key="tax.id" :value="tax.id">{{ tax.name }} ({{ tax.rate }}%)</option>
             </select>
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Purchase Price (LKR) *</label>
-            <input v-model="form.purchase_price" type="number" step="0.01" min="0" required class="form-input" />
+            <input v-model="form.purchase_price" type="number" step="0.01" min="0" :required="!isFood" class="form-input" />
           </div>
           <div>
             <label class="form-label">Selling Price (LKR) *</label>
             <input v-model="form.selling_price" type="number" step="0.01" min="0" required class="form-input" />
           </div>
-          <div>
+          <div v-if="!isFood">
             <label class="form-label">Stock Quantity *</label>
-            <input v-model="form.stock_quantity" type="number" min="0" required class="form-input" />
+            <input v-model="form.stock_quantity" type="number" min="0" :required="!isFood" class="form-input" />
           </div>
           <div>
             <label class="form-label">Min Stock Level</label>
@@ -92,7 +92,7 @@
             <input id="active" type="checkbox" v-model="form.is_active" class="rounded text-gold-600" />
             <label for="active" class="text-sm text-gray-700">Active</label>
           </div>
-          <div class="col-span-2 flex items-center gap-2">
+          <div v-if="!isFood" class="col-span-2 flex items-center gap-2">
             <input id="deposit" type="checkbox" v-model="form.bottle_deposit_required" class="rounded text-gold-600" />
             <label for="deposit" class="text-sm text-gray-700">Bottle deposit required</label>
           </div>
@@ -110,13 +110,18 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({ product: Object, categories: Array, suppliers: Array, taxes: Array })
 const emit  = defineEmits(['close', 'saved'])
 
 const unitTypes = ['Bottle', 'Can', 'Pack', 'Glass', 'Case', 'Plate', 'Serving']
+
+const isFood = computed(() => {
+  const cat = (props.categories ?? []).find(c => c.id === form.category_id)
+  return ['food', 'snacks'].includes((cat?.name ?? '').toLowerCase())
+})
 
 const CATEGORY_TYPE_MAP = {
   'liquor': 'Liquor', 'beer': 'Beer', 'soft drinks': 'Soft Drinks',
@@ -134,6 +139,17 @@ const saving = ref(false)
 const error  = ref('')
 const imageFile = ref(null)
 const imagePreview = ref('')
+
+watch(isFood, (val) => {
+  if (val) {
+    form.stock_quantity = 1000
+    form.purchase_price = form.selling_price
+  }
+})
+
+watch(() => form.selling_price, (val) => {
+  if (isFood.value) form.purchase_price = val
+})
 
 onMounted(() => {
   if (props.product) {

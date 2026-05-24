@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+#nprogress .bar { background: #d97706; height: 3px; }
+#nprogress .peg  { box-shadow: 0 0 10px #d97706, 0 0 5px #d97706; }
+
 @layer components {
     .btn-primary {
         @apply bg-gold-600 hover:bg-gold-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50;
@@ -28,8 +31,7 @@
     }
 
     .table-th {
-        @apply px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider;
-        text-align: left !important;
+        @apply px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left;
     }
 
     .table-td {

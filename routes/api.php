@@ -157,8 +157,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Bottle deposit management
     Route::get('/bottle-deposits', [BottleDepositController::class, 'index']);
     Route::get('/bottle-deposits/summary', [BottleDepositController::class, 'summary']);
+    Route::get('/bottle-deposits/available', [BottleDepositController::class, 'available']);
     Route::post('/bottle-deposits', [BottleDepositController::class, 'store']);
     Route::post('/bottle-deposits/return', [BottleDepositController::class, 'processReturn']);
+    Route::post('/bottle-deposits/supplier-return', [BottleDepositController::class, 'returnToSupplier']);
 
     // Buy-back (purchasing gold from customers)
     Route::get('/gold-buybacks',                [GoldBuybackController::class, 'index']);

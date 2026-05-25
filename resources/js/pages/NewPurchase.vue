@@ -71,9 +71,10 @@
           <h3 class="font-semibold text-gray-700">Details</h3>
           <div><label class="form-label">Status</label>
             <select v-model="form.status" class="form-input">
+              <option value="draft">Draft</option>
+              <option value="approved">Approved</option>
+              <option value="sent">Sent to Supplier</option>
               <option value="received">Received</option>
-              <option value="pending">Pending</option>
-              <option value="partial">Partial</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -113,7 +114,7 @@ const error     = ref('')
 const productSearches = ref([''])
 const showDropdown    = ref([false])
 
-const form = reactive({ supplier_id:'', status:'received', tax:0, notes:'', items:[{product_id:'',quantity:1,unit_cost:0}] })
+const form = reactive({ supplier_id:'', status:'draft', tax:0, notes:'', items:[{product_id:'',quantity:1,unit_cost:0}] })
 
 function filteredProducts(i) {
   const q = (productSearches.value[i] ?? '').toLowerCase().trim()

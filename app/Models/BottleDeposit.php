@@ -10,6 +10,8 @@ class BottleDeposit extends Model
         'branch_id',
         'sale_id',
         'customer_id',
+        'supplier_id',
+        'purchase_id',
         'product_id',
         'user_id',
         'type',
@@ -36,5 +38,15 @@ class BottleDeposit extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(\App\Models\Supplier::class);
+    }
+
+    public function purchase()
+    {
+        return $this->belongsTo(\App\Models\Purchase::class);
     }
 }

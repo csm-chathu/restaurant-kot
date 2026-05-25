@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // No-op: the create_cashier_shifts_table migration (2026_05_25_000001)
+        // already defines branch_id as nullable. This migration runs first due to
+        // its earlier timestamp but the table does not exist yet at that point.
+        if (!Schema::hasTable('cashier_shifts')) {
+            return;
+        }
+
         Schema::table('cashier_shifts', function (Blueprint $table) {
             $table->dropForeign(['branch_id']);
             $table->unsignedBigInteger('branch_id')->nullable()->change();
@@ -20,6 +27,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('cashier_shifts')) {
+            return;
+        }
+
         Schema::table('cashier_shifts', function (Blueprint $table) {
             $table->dropForeign(['branch_id']);
             $table->unsignedBigInteger('branch_id')->nullable(false)->change();

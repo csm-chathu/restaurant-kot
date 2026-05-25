@@ -19,6 +19,7 @@ class PurchaseController extends Controller
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where('purchase_number', 'like', "%$s%"))
             ->when(request('supplier_id'), fn($q, $s) => $q->where('supplier_id', $s))
+            ->when(request('receivable'), fn($q) => $q->whereIn('status', ['draft', 'approved', 'sent', 'partial_received']))
             ->latest('purchased_at')
             ->paginate(request('per_page', 20));
         return response()->json($purchases);

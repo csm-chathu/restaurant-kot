@@ -151,7 +151,7 @@ function formatDate(value) {
 async function load() {
   const [grnRes, purchaseRes] = await Promise.all([
     axios.get('/api/grns'),
-    axios.get('/api/purchases', { params: { per_page: 200 } }),
+    axios.get('/api/purchases', { params: { per_page: 200, receivable: 1 } }),
   ])
   grns.value = grnRes.data
   purchases.value = purchaseRes.data.data

@@ -50,6 +50,9 @@ class GrnController extends Controller
         if (!$request->user()->isAdmin() && $purchase->branch_id !== $request->user()->branch_id) {
             abort(403, 'Forbidden for this branch.');
         }
+        if (!in_array($purchase->status, ['draft', 'approved', 'sent', 'partial_received'])) {
+            return response()->json(['message' => 'Cannot create a GRN against a purchase with status: ' . $purchase->status], 422);
+        }
 
         DB::beginTransaction();
         try {

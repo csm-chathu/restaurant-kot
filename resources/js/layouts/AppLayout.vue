@@ -103,7 +103,7 @@
       </header>
 
       <!-- Page -->
-      <main class="flex-1 overflow-auto p-6">
+      <main :class="['sales.new', 'sales.new2'].includes(route.name) ? 'flex-1 overflow-hidden' : 'flex-1 overflow-auto p-6'">
         <router-view />
       </main>
     </div>
@@ -146,6 +146,7 @@ function toggleCollapse() {
   localStorage.setItem('sidebar_collapsed', collapsed.value)
 }
 
+
 const allNavItems = [
   { to: '/',           label: 'Dashboard',        icon: HomeIcon,         roles: null },
   { to: '/products',   label: 'Products',         icon: CubeIcon,         roles: ['admin', 'owner', 'manager', 'store_keeper'] },
@@ -186,6 +187,7 @@ const pageTitles = {
   suppliers:     'Suppliers',
   sales:         'POS Billing',
   'sales.new':   'New Bill',
+  'sales.new2':  'New Bill',
   'sales.edit':  'Edit Draft Bill',
   'sales.receipt': 'Bill Receipt',
   purchases:     'Purchase Orders',

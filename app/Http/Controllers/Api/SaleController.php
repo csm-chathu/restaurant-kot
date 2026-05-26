@@ -85,7 +85,7 @@ class SaleController extends Controller
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
                 $isOpenBottleSell = !empty($item['open_bottle_id']);
-                if (!$isOpenBottleSell && $product->stock_quantity < $item['quantity']) {
+                if (!$isOpenBottleSell && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
                 }
 
@@ -213,7 +213,7 @@ class SaleController extends Controller
                         $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
                     } elseif ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
-                    } else {
+                    } elseif ($i['product']->isStockTracked()) {
                         $i['product']->decrement('stock_quantity', $i['qty']);
                         $i['product']->refresh();
                         StockLedger::record(
@@ -480,7 +480,7 @@ class SaleController extends Controller
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
                 $isOpenBottleSell = !empty($item['open_bottle_id']);
-                if ($isCompleting && !$isOpenBottleSell && $product->stock_quantity < $item['quantity']) {
+                if ($isCompleting && !$isOpenBottleSell && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
                 }
 
@@ -558,7 +558,7 @@ class SaleController extends Controller
                         $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
                     } elseif ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
-                    } else {
+                    } elseif ($i['product']->isStockTracked()) {
                         $i['product']->decrement('stock_quantity', $i['qty']);
                         $i['product']->refresh();
                         StockLedger::record(
@@ -615,7 +615,9 @@ class SaleController extends Controller
         DB::beginTransaction();
         try {
             foreach ($sale->items as $item) {
-                $item->product->increment('stock_quantity', $item->quantity);
+                if ($item->product->isStockTracked()) {
+                    $item->product->increment('stock_quantity', $item->quantity);
+                }
             }
             AuditLog::record('sale_deleted', "Sale {$sale->invoice_number} deleted, stock restored", $sale,
                 ['invoice' => $sale->invoice_number, 'total' => $sale->total]);

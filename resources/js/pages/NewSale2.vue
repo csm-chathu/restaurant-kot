@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col bg-gray-100 overflow-hidden" style="height: calc(100vh - 60px)">
+  <div class="flex flex-col overflow-hidden bg-gray-100" style="height: calc(100vh - 60px)">
 
     <!-- Top bar -->
     <div class="flex items-center gap-2 px-4 py-2 bg-white border-b border-gray-200 shrink-0 flex-wrap">
@@ -8,7 +8,7 @@
       </router-link>
       <span class="text-gray-300 shrink-0">/</span>
       <h2 class="text-sm font-semibold text-gray-800 shrink-0">New Bill</h2>
-      <button v-if="kbShortcutsEnabled" @click="showKbHelp = !showKbHelp" type="button" title="Keyboard shortcuts (?)"
+      <button v-if="kbShortcutsEnabled" @click="showKbHelp = !showKbHelp" type="button"
         class="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
         <QuestionMarkCircleIcon class="w-4 h-4" /><span class="hidden sm:inline">Shortcuts</span>
       </button>
@@ -42,18 +42,18 @@
     <div class="flex flex-1 overflow-hidden">
 
       <!-- ── LEFT: Product browser ── -->
-      <div class="flex flex-col w-[56%] xl:w-[60%] overflow-hidden bg-white border-r border-gray-200">
+      <div class="flex flex-col w-[58%] xl:w-[62%] overflow-hidden bg-white border-r border-gray-200">
 
         <!-- Search + barcode -->
-        <div class="flex gap-2 px-3 py-2 border-b border-gray-100 shrink-0">
+        <div class="flex gap-2 px-3 py-2.5 border-b border-gray-100 shrink-0">
           <div class="relative flex-1">
-            <MagnifyingGlassIcon class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <MagnifyingGlassIcon class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               ref="searchInputRef"
               v-model="productGridSearch"
               type="text"
-              :placeholder="kbShortcutsEnabled ? 'Search products… (F1)' : 'Search products…'"
-              class="form-input pl-8 text-sm py-2"
+              :placeholder="kbShortcutsEnabled ? 'Search… (F1)' : 'Search products…'"
+              class="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
               @input="onSearchInput"
             />
           </div>
@@ -64,42 +64,44 @@
               v-model="barcodeInput"
               type="text"
               :placeholder="kbShortcutsEnabled ? 'Barcode (F2)' : 'Barcode'"
-              class="form-input pl-8 text-sm py-2 w-32"
+              class="pl-8 pr-3 py-2.5 rounded-xl text-sm bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-amber-500 w-28"
               @keyup.enter="scanBarcode"
             />
           </div>
-          <button type="button" @click="openScanner" title="Camera scanner" class="inline-flex items-center justify-center w-10 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 shrink-0">
-            <QrCodeIcon class="w-4 h-4" />
+          <button type="button" @click="openScanner" title="Camera scanner"
+            class="w-11 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:border-amber-400 hover:text-amber-600 flex items-center justify-center shrink-0 transition-colors">
+            <QrCodeIcon class="w-5 h-5" />
           </button>
         </div>
 
         <!-- Category tabs -->
-        <div class="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-gray-100 shrink-0">
+        <div class="flex gap-2 px-3 py-2.5 overflow-x-auto border-b border-gray-100 shrink-0">
           <button
-            v-for="cat in categoryTabs"
+            v-for="(cat, idx) in categoryTabs"
             :key="cat"
             @click="activeCategory = cat"
-            class="shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors"
+            class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
             :class="activeCategory === cat
-              ? 'bg-amber-500 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+              ? 'text-white shadow-md ' + getCategoryActiveBg(cat, idx)
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'"
           >
-            {{ cat }}
+            <span class="text-base leading-none">{{ getCategoryEmoji(cat) }}</span>
+            <span>{{ cat }}</span>
           </button>
         </div>
 
         <!-- Barcode error -->
-        <p v-if="barcodeError" class="mx-3 mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0">
+        <p v-if="barcodeError" class="mx-3 mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-center gap-1.5 shrink-0">
           <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ barcodeError }}
         </p>
 
         <!-- Product grid -->
-        <div class="flex-1 overflow-y-auto p-3">
-          <div v-if="!gridProducts.length" class="flex flex-col items-center justify-center py-16 text-gray-400">
-            <ShoppingBagIcon class="w-12 h-12 opacity-20 mb-2" />
-            <p class="text-sm">No products found</p>
+        <div class="flex-1 overflow-y-auto p-3 bg-gray-50">
+          <div v-if="!gridProducts.length" class="flex flex-col items-center justify-center py-20 text-gray-400">
+            <ShoppingBagIcon class="w-16 h-16 opacity-20 mb-3" />
+            <p class="text-sm font-medium">No products found</p>
           </div>
-          <div class="grid grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2">
+          <div class="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
             <button
               v-for="(product, idx) in gridProducts"
               :key="product.id"
@@ -107,421 +109,505 @@
               @click="addProductFromGrid(product)"
               :disabled="isStockTracked(product) && product.stock_quantity < 1"
               type="button"
-              class="relative flex flex-col items-start p-2.5 rounded-xl border-2 text-left transition-all select-none"
+              class="relative flex flex-col rounded-2xl border-2 text-left transition-all select-none overflow-hidden group bg-white"
               :class="isStockTracked(product) && product.stock_quantity < 1
-                ? 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'
+                ? 'border-gray-100 opacity-40 cursor-not-allowed'
                 : gridFocusIndex === idx
-                  ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400 shadow-md'
+                  ? 'border-amber-500 ring-2 ring-amber-400 shadow-xl shadow-amber-100'
                   : isInBill(product.id)
-                    ? 'border-amber-400 bg-amber-50 hover:bg-amber-100 shadow-sm'
-                    : 'border-gray-200 bg-white hover:border-amber-300 hover:bg-amber-50 hover:shadow-sm active:scale-95'"
+                    ? 'border-amber-400 shadow-lg shadow-amber-100'
+                    : 'border-gray-200 hover:border-amber-300 hover:shadow-md active:scale-95'"
             >
               <!-- In-bill qty badge -->
-              <span
+              <div
                 v-if="isInBill(product.id)"
-                class="absolute top-1.5 right-1.5 w-5 h-5 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center shadow"
-              >{{ getBillQty(product.id) }}</span>
+                class="absolute top-2 right-2 z-10 w-7 h-7 bg-amber-500 text-white rounded-full text-sm font-bold flex items-center justify-center shadow-lg"
+              >{{ getBillQty(product.id) }}</div>
 
               <!-- Image -->
-              <div class="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 mb-2 shrink-0">
+              <div class="w-full aspect-[4/3] overflow-hidden bg-gray-100 shrink-0 relative">
                 <img v-if="product.image" :src="product.image" :alt="product.name" class="w-full h-full object-cover" />
-                <div v-else class="w-full h-full flex items-center justify-center">
-                  <ShoppingBagIcon class="w-6 h-6 text-gray-300" />
+                <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                  <ShoppingBagIcon class="w-10 h-10 text-gray-300" />
+                </div>
+                <!-- Overlay quick-add button -->
+                <div class="absolute inset-x-0 bottom-0 py-2 px-2 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-end"
+                     v-if="!(isStockTracked(product) && product.stock_quantity < 1)">
+                  <span class="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">+</span>
                 </div>
               </div>
 
-              <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-2 mb-1 w-full">{{ product.name }}</p>
-              <p class="text-xs font-bold text-amber-600">LKR {{ lkr(product.selling_price) }}</p>
-              <p v-if="isStockTracked(product)" class="text-xs text-gray-400 mt-0.5">
-                <span :class="product.stock_quantity <= product.min_stock_level ? 'text-red-400' : ''">
-                  {{ product.stock_quantity }} left
-                </span>
-              </p>
+              <div class="p-2.5 flex flex-col gap-1">
+                <p class="text-sm font-semibold text-gray-800 leading-tight line-clamp-2">{{ product.name }}</p>
+                <p class="text-base font-bold text-amber-600">LKR {{ lkr(product.selling_price) }}</p>
+                <p v-if="isStockTracked(product)" class="text-xs"
+                  :class="product.stock_quantity <= product.min_stock_level ? 'text-red-500' : 'text-gray-400'">
+                  {{ product.stock_quantity <= product.min_stock_level ? '⚠ ' : '' }}{{ product.stock_quantity }} in stock
+                </p>
+              </div>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- ── RIGHT: Bill + Payment ── -->
-      <div class="flex flex-col w-[44%] xl:w-[40%] overflow-hidden">
+      <!-- ── RIGHT: Order panel ── -->
+      <div class="flex flex-col w-[42%] xl:w-[38%] overflow-hidden bg-gray-50">
 
         <!-- Table + Customer -->
-        <div class="px-3 py-2.5 bg-white border-b border-gray-200 shrink-0 space-y-2">
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="text-xs font-medium text-gray-500 mb-1 block">Table</label>
-              <select v-model="form.table_number" class="form-input text-sm py-1.5">
-                <option value="">Walk-in</option>
-                <option v-for="t in availableTables" :key="t.id" :value="t.table_number">
-                  {{ t.table_number }}
-                </option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-medium text-gray-500 mb-1 block">Customer</label>
-              <div class="flex gap-1">
-                <select v-model="form.customer_id" class="form-input text-sm py-1.5 flex-1 min-w-0">
-                  <option value="">Walk-in</option>
-                  <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
-                </select>
-                <button
-                  @click="showNewCustomer = !showNewCustomer"
-                  type="button"
-                  class="w-8 shrink-0 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
-                  title="Add new customer"
-                >
-                  <PlusIcon class="w-3.5 h-3.5" />
-                </button>
+        <div class="px-3 pt-3 pb-2 bg-white border-b border-gray-200 shrink-0 space-y-2">
+          <!-- Table picker button -->
+          <div class="flex gap-2">
+            <button
+              @click="showTablePicker = true"
+              type="button"
+              class="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all font-semibold text-sm"
+              :class="form.table_number
+                ? 'border-amber-500 bg-amber-50 text-amber-700'
+                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-300'"
+            >
+              <div class="flex items-center gap-2">
+                <TableCellsIcon class="w-4 h-4" />
+                <span>{{ form.table_number ? 'Table ' + form.table_number : 'Select Table' }}</span>
               </div>
+              <span v-if="form.table_number" @click.stop="form.table_number = ''" class="text-gray-400 hover:text-red-500 text-lg leading-none">×</span>
+              <ChevronDownIcon v-else class="w-4 h-4 text-gray-400" />
+            </button>
+
+            <div class="flex gap-1 flex-1">
+              <select v-model="form.customer_id" class="flex-1 min-w-0 px-2 py-2.5 rounded-xl border-2 border-gray-200 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:border-amber-500 font-medium">
+                <option value="">👤 Walk-in</option>
+                <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+              <button
+                @click="showNewCustomer = !showNewCustomer"
+                type="button"
+                class="w-10 shrink-0 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-amber-400 hover:text-amber-600 bg-gray-50"
+                title="Add new customer"
+              >
+                <PlusIcon class="w-4 h-4" />
+              </button>
             </div>
           </div>
 
           <!-- Quick new customer -->
-          <div v-if="showNewCustomer" class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 space-y-1.5">
+          <div v-if="showNewCustomer" class="bg-blue-50 border border-blue-200 rounded-xl p-2.5 space-y-1.5">
             <div class="grid grid-cols-2 gap-1.5">
-              <input v-model="newCustomer.name" type="text" placeholder="Name *" class="form-input text-xs py-1.5" @keyup.enter="saveNewCustomer" />
-              <input v-model="newCustomer.phone" type="tel" placeholder="Phone" class="form-input text-xs py-1.5" @keyup.enter="saveNewCustomer" />
+              <input v-model="newCustomer.name" type="text" placeholder="Name *" class="px-3 py-2 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-400" @keyup.enter="saveNewCustomer" />
+              <input v-model="newCustomer.phone" type="tel" placeholder="Phone" class="px-3 py-2 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-400" @keyup.enter="saveNewCustomer" />
             </div>
             <p v-if="newCustomerError" class="text-xs text-red-600">{{ newCustomerError }}</p>
-            <button @click="saveNewCustomer" :disabled="savingCustomer || !newCustomer.name.trim()" class="w-full py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold">
+            <button @click="saveNewCustomer" :disabled="savingCustomer || !newCustomer.name.trim()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold">
               {{ savingCustomer ? 'Saving…' : 'Save & Select' }}
             </button>
           </div>
 
-          <input v-model="form.notes" type="text" placeholder="Order notes…" class="form-input text-sm py-1.5" />
+          <input v-model="form.notes" type="text" placeholder="📝 Order notes…" class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-amber-500 bg-gray-50" />
         </div>
 
         <!-- Bill items (scrollable) -->
         <div class="flex-1 overflow-y-auto bg-white">
-          <div v-if="!form.items.length" class="flex flex-col items-center justify-center py-12 text-gray-400">
-            <ShoppingCartIcon class="w-10 h-10 opacity-20 mb-2" />
-            <p class="text-sm">Tap products to add</p>
+          <div v-if="!form.items.length" class="flex flex-col items-center justify-center py-16 text-gray-400">
+            <ShoppingCartIcon class="w-14 h-14 opacity-15 mb-3" />
+            <p class="text-base font-medium text-gray-400">Tap products to add</p>
+            <p class="text-sm text-gray-300 mt-1">Items will appear here</p>
           </div>
 
-          <div v-else class="divide-y divide-gray-100">
-            <div
-              v-for="(item, i) in form.items"
-              :key="i"
-              class="px-3 py-2.5 hover:bg-gray-50 transition-colors"
-            >
-              <!-- If no product selected yet (manual line) -->
-              <div v-if="!item.product_id" class="space-y-1.5">
-                <select v-model="item.product_id" class="form-input text-sm" @change="fillProduct(item)">
-                  <option value="">— Select product —</option>
-                  <option v-for="p in products" :key="p.id" :value="p.id" :disabled="isStockTracked(p) && p.stock_quantity < 1">
-                    {{ p.name }} {{ isStockTracked(p) ? '(' + p.stock_quantity + ' in stock)' : '' }}
-                  </option>
-                </select>
-                <button @click="removeItem(i)" class="text-xs text-red-400 hover:text-red-600">Remove</button>
-              </div>
+          <div v-else>
+            <!-- Order summary header -->
+            <div class="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Order · {{ form.items.filter(i => i.product_id).length }} items</span>
+              <span class="text-xs text-gray-400">{{ form.items.filter(i => i.product_id).reduce((s, i) => s + i.quantity, 0) }} qty</span>
+            </div>
 
-              <!-- Product line -->
-              <template v-else>
-                <div class="flex items-start gap-2">
-                  <!-- Thumbnail -->
-                  <div class="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
-                    <img v-if="item.product_ref?.image" :src="item.product_ref.image" :alt="item.product_ref?.name" class="w-full h-full object-cover" />
-                    <div v-else class="w-full h-full flex items-center justify-center">
-                      <ShoppingBagIcon class="w-5 h-5 text-gray-300" />
+            <div class="divide-y divide-gray-100">
+              <div
+                v-for="(item, i) in form.items"
+                :key="i"
+                class="px-3 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <!-- If no product selected yet (manual line) -->
+                <div v-if="!item.product_id" class="space-y-1.5">
+                  <select v-model="item.product_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-amber-500" @change="fillProduct(item)">
+                    <option value="">— Select product —</option>
+                    <option v-for="p in products" :key="p.id" :value="p.id" :disabled="isStockTracked(p) && p.stock_quantity < 1">
+                      {{ p.name }} {{ isStockTracked(p) ? '(' + p.stock_quantity + ')' : '' }}
+                    </option>
+                  </select>
+                  <button @click="removeItem(i)" class="text-xs text-red-400 hover:text-red-600">Remove</button>
+                </div>
+
+                <!-- Product line -->
+                <template v-else>
+                  <div class="flex items-center gap-2.5">
+                    <!-- Thumbnail -->
+                    <div class="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-200">
+                      <img v-if="item.product_ref?.image" :src="item.product_ref.image" :alt="item.product_ref?.name" class="w-full h-full object-cover" />
+                      <div v-else class="w-full h-full flex items-center justify-center">
+                        <ShoppingBagIcon class="w-6 h-6 text-gray-300" />
+                      </div>
                     </div>
-                  </div>
 
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5">
-                      <p class="text-sm font-semibold text-gray-800 leading-tight truncate">
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-bold text-gray-800 leading-tight truncate">
                         {{ item.product_ref?.name || 'Product' }}
                       </p>
-                      <span v-if="item.open_bottle_id" class="shrink-0 px-1.5 py-0 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">OPENED</span>
+                      <p class="text-xs text-amber-600 font-semibold mt-0.5">
+                        LKR {{ lkr(getEffectiveUnitPrice(item)) }}
+                        <span v-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400 font-normal"> · {{ item.serving_ml }}ml</span>
+                      </p>
                     </div>
-                    <p class="text-xs text-amber-600">
-                      LKR {{ lkr(getEffectiveUnitPrice(item)) }}
-                      <span v-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400"> · {{ item.serving_ml }}ml</span>
-                      <span v-if="!item.empty_bottle_returned && item.product_ref?.bottle_deposit_required" class="text-gray-400"> · +dep</span>
-                    </p>
+
+                    <!-- Qty control - larger touch targets -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <button
+                        @click="decrementItem(item, i)"
+                        :disabled="!!item.open_bottle_id"
+                        class="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed border border-red-100"
+                      >−</button>
+                      <span class="w-8 text-center text-base font-bold text-gray-900">{{ item.quantity }}</span>
+                      <button
+                        @click="item.quantity++; recalcItem(item)"
+                        :disabled="!!item.open_bottle_id"
+                        class="w-9 h-9 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xl leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed border border-amber-200"
+                      >+</button>
+                    </div>
+
+                    <!-- Line total -->
+                    <div class="shrink-0 w-20 text-right">
+                      <p class="text-sm font-bold text-gray-900">LKR {{ lkr(item._lineTotal) }}</p>
+                    </div>
+
+                    <button @click="removeItem(i)" class="shrink-0 w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <XMarkIcon class="w-4 h-4" />
+                    </button>
                   </div>
 
-                  <!-- Qty control -->
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button
-                      @click="decrementItem(item, i)"
-                      :disabled="!!item.open_bottle_id"
-                      class="w-7 h-7 rounded-full bg-gray-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center text-gray-600 font-bold text-lg leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >−</button>
-                    <span class="w-6 text-center text-sm font-bold text-gray-900">{{ item.quantity }}</span>
-                    <button
-                      @click="item.quantity++; recalcItem(item)"
-                      :disabled="!!item.open_bottle_id"
-                      class="w-7 h-7 rounded-full bg-amber-100 hover:bg-amber-200 flex items-center justify-center text-amber-700 font-bold text-lg leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >+</button>
-                  </div>
+                  <!-- Extras row -->
+                  <div class="mt-2 space-y-1.5">
+                    <!-- Item discount -->
+                    <div class="flex flex-wrap gap-x-4 gap-y-1.5 items-center">
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-xs text-gray-400">Disc:</span>
+                        <input v-model.number="item.discount" type="number" min="0" class="w-16 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" placeholder="0" />
+                      </div>
 
-                  <!-- Line total -->
-                  <div class="shrink-0 w-20 text-right">
-                    <p class="text-sm font-bold text-gray-900">LKR {{ lkr(item._lineTotal) }}</p>
-                  </div>
-
-                  <button @click="removeItem(i)" class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors">
-                    <XMarkIcon class="w-4 h-4" />
-                  </button>
-                </div>
-
-                <!-- Extras row -->
-                <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1.5 items-center">
-                  <!-- Item discount -->
-                  <div class="flex items-center gap-1">
-                    <span class="text-xs text-gray-400">Disc:</span>
-                    <input v-model.number="item.discount" type="number" min="0" class="w-16 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
-                  </div>
-
-                  <!-- Opened bottle badge OR sell opened bottle button -->
-                  <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type)">
-                    <template v-if="item.open_bottle_id">
-                      <!-- Show which opened bottle is linked + editable price + clear -->
-                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
-                        Opened · {{ item.open_bottle_ref?.remaining_volume_ml?.toFixed(0) }}ml
+                      <!-- Opened bottle badge -->
+                      <span v-if="item.open_bottle_id" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                        🍾 Opened · {{ item.open_bottle_ref?.remaining_volume_ml?.toFixed(0) }}ml
                       </span>
-                      <div class="flex items-center gap-1">
-                        <span class="text-xs text-gray-400">Price:</span>
-                        <input v-model.number="item.unit_price" type="number" min="0" class="w-20 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" />
-                      </div>
-                      <button @click="clearOpenBottle(item)" type="button" class="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
-                    </template>
-                    <template v-else>
-                      <!-- Serving ml picker -->
-                      <div class="flex items-center gap-1">
-                        <span class="text-xs text-gray-400">ml:</span>
-                        <button v-for="size in [30, 50, 60, 75]" :key="size"
-                          @click="item.serving_ml = size; recalcItem(item)" type="button"
-                          class="px-1.5 py-0.5 text-xs font-semibold rounded transition-colors"
-                          :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
-                        >{{ size }}</button>
-                        <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
-                      </div>
-                      <!-- Sell opened bottle button -->
-                      <button @click="showOpenBottlePicker(item)" type="button"
-                        class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
-                      >Sell opened bottle</button>
-                    </template>
-                  </template>
 
-                  <!-- Bottle deposit -->
-                  <div v-if="item.product_ref?.bottle_deposit_required" class="flex items-center gap-1.5">
-                    <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                      <input type="checkbox" v-model="item.empty_bottle_returned" @change="recalcItem(item)" class="rounded text-amber-600" />
-                      Bottle returned
-                    </label>
+                      <!-- Liquor options -->
+                      <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type)">
+                        <template v-if="item.open_bottle_id">
+                          <div class="flex items-center gap-1">
+                            <span class="text-xs text-gray-400">Price:</span>
+                            <input v-model.number="item.unit_price" type="number" min="0" class="w-20 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" />
+                          </div>
+                          <button @click="clearOpenBottle(item)" type="button" class="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
+                        </template>
+                        <template v-else>
+                          <div class="flex items-center gap-1">
+                            <span class="text-xs text-gray-400">ml:</span>
+                            <button v-for="size in [30, 50, 60, 75]" :key="size"
+                              @click="item.serving_ml = size; recalcItem(item)" type="button"
+                              class="px-2 py-1 text-xs font-semibold rounded-lg transition-colors"
+                              :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
+                            >{{ size }}</button>
+                            <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" placeholder="0" />
+                          </div>
+                          <button @click="showOpenBottlePicker(item)" type="button"
+                            class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
+                          >Sell opened bottle</button>
+                        </template>
+                      </template>
+
+                      <!-- Bottle deposit -->
+                      <div v-if="item.product_ref?.bottle_deposit_required" class="flex items-center gap-1.5">
+                        <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                          <input type="checkbox" v-model="item.empty_bottle_returned" @change="recalcItem(item)" class="rounded text-amber-600" />
+                          Bottle returned
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Kitchen notes -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="text-xs text-gray-400 shrink-0">Note:</span>
+                      <button
+                        v-for="note in kitchenNotes"
+                        :key="note"
+                        @click="toggleKitchenNote(item, note)"
+                        type="button"
+                        class="px-2 py-0.5 rounded-full text-xs font-medium transition-colors border"
+                        :class="(item.item_notes || '').includes(note)
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-indigo-400 hover:text-indigo-600'"
+                      >{{ note }}</button>
+                      <input
+                        v-model="item.item_notes_custom"
+                        type="text"
+                        placeholder="custom…"
+                        class="flex-1 min-w-0 px-2 py-0.5 rounded-full border border-gray-200 text-xs focus:outline-none focus:border-indigo-400 text-gray-600 placeholder-gray-400"
+                      />
+                    </div>
                   </div>
-                </div>
-              </template>
+                </template>
+              </div>
             </div>
           </div>
 
           <!-- Add manual line -->
           <div class="px-3 py-2">
-            <button @click="addItem" class="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 border-dashed border-gray-200 text-gray-400 hover:border-amber-300 hover:text-amber-500 text-xs font-medium transition-colors">
-              <PlusIcon class="w-3.5 h-3.5" /> Add line manually
+            <button @click="addItem" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-amber-400 hover:text-amber-500 text-sm font-medium transition-colors">
+              <PlusIcon class="w-4 h-4" /> Add item manually
             </button>
           </div>
         </div>
 
         <!-- ── Totals + Payment (pinned bottom) ── -->
-        <div class="shrink-0 border-t border-gray-200 bg-white">
+        <div class="shrink-0 bg-white border-t-2 border-gray-200">
 
-          <!-- Total row (always visible) + collapsible detail -->
-          <div class="border-b border-gray-100">
+          <!-- Order summary -->
+          <div class="px-4 py-3 bg-amber-50 border-t border-amber-100">
             <button
               @click="showPricingDetails = !showPricingDetails"
-              class="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
+              class="w-full flex items-center justify-between"
             >
-              <div class="flex items-center gap-2 text-xs text-gray-400">
-                <span>TOTAL</span>
-                <span v-if="form.discount > 0" class="text-red-400">−{{ lkr(form.discount) }}</span>
-                <span v-if="form.tax > 0" class="text-blue-400">+tax {{ form.tax_rate }}%</span>
-                <span class="text-gray-300">{{ showPricingDetails ? '▲' : '▼' }}</span>
+              <div class="flex flex-col items-start">
+                <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">Total Amount</span>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span v-if="form.discount > 0" class="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full">−{{ lkr(form.discount) }} off</span>
+                  <span v-if="form.tax > 0" class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">+{{ form.tax_rate }}% tax</span>
+                </div>
               </div>
-              <span class="text-xl font-bold text-amber-600">LKR {{ lkr(total) }}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-3xl font-black text-amber-600">LKR {{ lkr(total) }}</span>
+                <span class="text-amber-400 text-sm">{{ showPricingDetails ? '▲' : '▼' }}</span>
+              </div>
             </button>
 
             <!-- Collapsible: subtotal / discount / tax -->
-            <div v-if="showPricingDetails" class="px-3 pb-2 space-y-1.5 border-t border-gray-100 bg-gray-50">
-              <div class="flex justify-between text-xs text-gray-500 pt-1.5">
-                <span>Subtotal</span><span>LKR {{ lkr(subtotal) }}</span>
+            <div v-if="showPricingDetails" class="mt-3 pt-3 border-t border-amber-200 space-y-2">
+              <div class="flex justify-between text-sm text-gray-500">
+                <span>Subtotal</span><span class="text-gray-800 font-semibold">LKR {{ lkr(subtotal) }}</span>
               </div>
               <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-xs text-gray-500">Discount</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-500">Discount</span>
                   <button
                     type="button" @click="toggleDiscountType"
-                    class="px-1.5 py-0.5 text-xs font-bold rounded border transition-colors shrink-0"
+                    class="px-2 py-1 text-xs font-bold rounded-lg border transition-colors shrink-0"
                     :class="discountType === 'percent'
                       ? 'bg-red-500 text-white border-red-500'
-                      : 'bg-gray-200 text-gray-600 border-gray-300 hover:bg-gray-300'"
+                      : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'"
                   >{{ discountType === 'percent' ? '%' : 'LKR' }}</button>
                   <input
                     v-model.number="discountInput"
                     type="number" min="0" :max="discountType === 'percent' ? 100 : undefined"
-                    class="w-20 form-input text-xs py-0.5 text-center"
+                    class="w-24 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm text-center focus:outline-none focus:border-amber-500"
                     @input="applyDiscount" placeholder="0"
                   />
                 </div>
-                <span v-if="form.discount > 0" class="text-xs text-red-500 font-medium">
+                <span v-if="form.discount > 0" class="text-sm text-red-500 font-semibold">
                   −LKR {{ lkr(form.discount) }}
-                  <span v-if="discountType === 'percent'" class="text-gray-400">({{ discountInput }}%)</span>
+                  <span v-if="discountType === 'percent'" class="text-gray-400 text-xs font-normal">({{ discountInput }}%)</span>
                 </span>
               </div>
               <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-xs text-gray-500">Tax</span>
-                  <select v-model="selectedTaxId" class="form-input text-xs py-0.5 w-28" @change="applyTax">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-500">Tax</span>
+                  <select v-model="selectedTaxId" class="px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm focus:outline-none focus:border-amber-500 w-36" @change="applyTax">
                     <option value="">None</option>
                     <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.rate }}%)</option>
                   </select>
                 </div>
-                <span v-if="form.tax > 0" class="text-xs text-blue-500 font-medium">+LKR {{ lkr(form.tax) }}</span>
+                <span v-if="form.tax > 0" class="text-sm text-blue-500 font-semibold">+LKR {{ lkr(form.tax) }}</span>
               </div>
             </div>
           </div>
 
-          <!-- Payment method + status (single row) -->
-          <div class="px-3 pt-1.5 pb-1 flex gap-1 flex-wrap items-center">
-            <template v-if="!splitPayment">
+          <!-- Payment method - large touch buttons -->
+          <div class="px-3 pt-3 pb-2">
+            <div class="flex gap-2">
+              <template v-if="!splitPayment">
+                <button
+                  v-for="opt in paymentOptions"
+                  :key="opt.value"
+                  @click="form.payment_method = opt.value"
+                  class="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl font-bold text-sm transition-all border-2"
+                  :class="form.payment_method === opt.value
+                    ? 'bg-gray-900 text-white border-gray-900 shadow-lg'
+                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'"
+                >
+                  <span class="text-xl">{{ opt.icon }}</span>
+                  <span>{{ opt.label }}</span>
+                </button>
+              </template>
               <button
-                v-for="opt in paymentOptions"
-                :key="opt.value"
-                @click="form.payment_method = opt.value"
-                class="px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors"
-                :class="form.payment_method === opt.value
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-gray-100 text-gray-500 border-gray-200 hover:border-gray-400'"
-              >{{ opt.label }}</button>
-            </template>
-            <button
-              @click="toggleSplit"
-              class="px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors"
-              :class="splitPayment
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-gray-100 text-gray-500 border-gray-200 hover:border-gray-400'"
-            >Split</button>
-
-            <button
-              @click="form.payment_status = form.payment_status === 'pending' ? 'paid' : form.payment_status === 'paid' ? 'partial' : 'pending'"
-              class="ml-auto px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors"
-              :class="form.payment_status === 'pending'
-                ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                : form.payment_status === 'partial'
-                  ? 'bg-orange-100 text-orange-700 border-orange-300'
-                  : 'bg-green-100 text-green-700 border-green-300'"
-            >{{ form.payment_status === 'pending' ? 'Pending' : form.payment_status === 'partial' ? 'Partial' : 'Paid' }}</button>
+                @click="toggleSplit"
+                class="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl font-bold text-sm transition-all border-2"
+                :class="splitPayment
+                  ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
+                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-purple-400'"
+              >
+                <span class="text-xl">✂️</span>
+                <span>Split</span>
+              </button>
+              <button
+                @click="form.payment_status = form.payment_status === 'pending' ? 'paid' : form.payment_status === 'paid' ? 'partial' : 'pending'"
+                class="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl font-bold text-sm transition-all border-2"
+                :class="form.payment_status === 'pending'
+                  ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                  : form.payment_status === 'partial'
+                    ? 'bg-orange-50 text-orange-700 border-orange-300'
+                    : 'bg-green-50 text-green-700 border-green-300'"
+              >
+                <span class="text-xl">{{ form.payment_status === 'pending' ? '⏳' : form.payment_status === 'partial' ? '⚡' : '✅' }}</span>
+                <span>{{ form.payment_status === 'pending' ? 'Pending' : form.payment_status === 'partial' ? 'Partial' : 'Paid' }}</span>
+              </button>
+            </div>
           </div>
 
-          <!-- Card reference (single card mode only) -->
-          <div v-if="!splitPayment && form.payment_method === 'card'" class="px-3 pb-1">
-            <input v-model="form.card_reference" type="text" placeholder="Card receipt reference…" class="form-input text-sm py-1.5 w-full" />
+          <!-- Card reference -->
+          <div v-if="!splitPayment && form.payment_method === 'card'" class="px-3 pb-2">
+            <input v-model="form.card_reference" type="text" placeholder="Card receipt reference…"
+              class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-amber-500 text-gray-700" />
           </div>
 
           <!-- Split payment inputs -->
-          <div v-if="splitPayment" class="px-3 pb-1.5 space-y-1.5">
+          <div v-if="splitPayment" class="px-3 pb-2 space-y-2">
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="text-xs font-semibold text-gray-500 mb-0.5 block">Cash</label>
+                <label class="text-xs font-bold text-gray-500 mb-1 block">💵 Cash</label>
                 <input v-model.number="splitCash" type="number" min="0" step="1"
-                  class="form-input text-base font-bold py-1.5 text-center text-gray-900 w-full"
+                  class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
                   @input="onSplitCashInput" />
               </div>
               <div>
-                <label class="text-xs font-semibold text-gray-500 mb-0.5 block">Card</label>
+                <label class="text-xs font-bold text-gray-500 mb-1 block">💳 Card</label>
                 <input v-model.number="splitCard" type="number" min="0" step="1"
-                  class="form-input text-base font-bold py-1.5 text-center text-gray-900 w-full"
+                  class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
                   @input="onSplitCardInput" />
               </div>
             </div>
-            <div class="flex gap-1">
+            <div class="flex gap-1.5">
               <button @click="splitCash = total; splitCard = 0"
-                class="flex-1 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">
-                All Cash
-              </button>
+                class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">All Cash</button>
               <button @click="splitCard = total; splitCash = 0"
-                class="flex-1 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">
-                All Card
-              </button>
+                class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">All Card</button>
               <button @click="splitCash = Math.ceil(total / 2); splitCard = Math.floor(total / 2)"
-                class="flex-1 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">
-                50/50
-              </button>
+                class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">50/50</button>
             </div>
             <!-- Card reference when card portion > 0 -->
             <div v-if="splitCard > 0">
-              <input v-model="splitCardReference" type="text" placeholder="Card receipt / last 4 digits…" class="form-input text-sm py-1.5 w-full" />
+              <input v-model="splitCardReference" type="text" placeholder="Card receipt / last 4 digits…"
+                class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-amber-500 bg-white" />
             </div>
-            <div v-if="totalPaid > 0" class="flex justify-between text-xs text-gray-500 px-0.5">
-              <span>Total received: <strong class="text-gray-800">LKR {{ lkr(totalPaid) }}</strong></span>
+            <div v-if="totalPaid > 0" class="text-xs text-gray-500 text-center">
+              Received: <strong class="text-gray-800">LKR {{ lkr(totalPaid) }}</strong>
             </div>
           </div>
 
-          <!-- Amount + quick cash (single payment mode) -->
-          <div v-if="!splitPayment" class="px-3 pb-1.5">
-            <div class="flex gap-1.5">
+          <!-- Amount + Exact + Change on one line (single payment) -->
+          <div v-if="!splitPayment" class="px-3 pb-2">
+            <div class="flex items-center gap-2">
               <input
                 ref="amountInputRef"
                 v-model.number="form.amount_paid"
                 type="number"
                 min="0"
-                class="form-input text-base font-bold py-1.5 text-center text-gray-900 flex-1"
-                :placeholder="kbShortcutsEnabled ? 'Amount received (F3)' : 'Amount received'"
-                @input="recalc"
+                class="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
+                :placeholder="kbShortcutsEnabled ? 'Amount (F3)' : 'Amount received'"
+                @input="amountManuallySet = true; recalc()"
               />
               <button
-                @click="form.amount_paid = total"
-                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-300 transition-colors shrink-0"
+                @click="amountManuallySet = false; form.amount_paid = total"
+                class="px-3 py-2.5 rounded-xl text-sm font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border-2 border-amber-300 transition-colors shrink-0"
               >Exact</button>
-            </div>
-            <div class="flex gap-1 mt-1">
-              <button
-                v-for="denom in quickDenominations"
-                :key="denom"
-                @click="form.amount_paid = denom"
-                class="flex-1 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors"
-              >{{ denom >= 1000 ? (denom / 1000) + 'K' : denom }}</button>
-            </div>
-          </div>
-
-          <!-- Change / balance (shown for both modes) -->
-          <div class="px-3 pb-1.5">
-            <div v-if="changeDue > 0" class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2.5 py-1">
-              <span class="text-xs font-semibold text-green-700">Change</span>
-              <span class="text-base font-bold text-green-600">LKR {{ lkr(changeDue) }}</span>
-            </div>
-            <div v-else-if="balanceDue > 0.009" class="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1">
-              <span class="text-xs font-semibold text-yellow-700">Balance due</span>
-              <span class="text-base font-bold text-yellow-600">LKR {{ lkr(balanceDue) }}</span>
+              <div v-if="changeDue > 0" class="shrink-0 flex flex-col items-center bg-green-50 border-2 border-green-200 rounded-xl px-3 py-1">
+                <span class="text-[10px] font-semibold text-green-600 uppercase tracking-wide leading-none">Change</span>
+                <span class="text-base font-black text-green-600 leading-tight">{{ lkr(changeDue) }}</span>
+              </div>
+              <div v-else-if="balanceDue > 0.009" class="shrink-0 flex flex-col items-center bg-yellow-50 border-2 border-yellow-200 rounded-xl px-3 py-1">
+                <span class="text-[10px] font-semibold text-yellow-600 uppercase tracking-wide leading-none">Due</span>
+                <span class="text-base font-black text-yellow-600 leading-tight">{{ lkr(balanceDue) }}</span>
+              </div>
             </div>
           </div>
 
           <!-- Error -->
-          <p v-if="error" class="mx-3 mb-1 text-xs text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
-            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ error }}
+          <p v-if="error" class="mx-3 mb-2 text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-xl flex items-center gap-2">
+            <ExclamationTriangleIcon class="w-4 h-4 shrink-0" /> {{ error }}
           </p>
 
           <!-- Action buttons -->
-          <div class="flex gap-2 px-3 pb-2.5 pt-1">
+          <div class="flex gap-2 px-3 pb-3 pt-1">
             <button
               @click="submit('draft')"
               :disabled="saving || !form.items.filter(i => i.product_id).length"
-              class="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-500 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-colors"
+              class="flex items-center justify-center gap-2 px-4 py-3.5 bg-gray-600 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-colors shrink-0"
             >
               <ArrowPathIcon v-if="saving" class="w-4 h-4 animate-spin" />
-              <CheckCircleIcon v-else class="w-4 h-4" />
-              Draft <span v-if="kbShortcutsEnabled" class="opacity-60 text-xs font-normal ml-0.5">F9</span>
+              <span v-else>📋</span>
+              Draft
+              <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F9</span>
             </button>
             <button
               @click="submit('completed')"
               :disabled="saving || !form.items.filter(i => i.product_id).length"
-              class="flex-[2] flex items-center justify-center gap-2 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm shadow-md transition-colors"
+              class="flex-1 flex items-center justify-center gap-2 py-3.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black text-base shadow-lg shadow-green-500/30 transition-all active:scale-95"
             >
               <ArrowPathIcon v-if="saving" class="w-5 h-5 animate-spin" />
-              <CheckCircleIcon v-else class="w-5 h-5" />
-              {{ saving ? 'Processing…' : 'Complete Sale' }} <span v-if="kbShortcutsEnabled" class="opacity-60 text-xs font-normal ml-0.5">F10</span>
+              <span v-else class="text-xl">✓</span>
+              {{ saving ? 'Processing…' : 'Complete Sale' }}
+              <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F10</span>
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Table picker modal ── -->
+    <div v-if="showTablePicker" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="showTablePicker = false">
+      <div class="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Select Table</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Tap a table to assign this order</p>
+          </div>
+          <button @click="showTablePicker = false" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg text-xl leading-none">✕</button>
+        </div>
+        <div class="p-5">
+          <!-- Walk-in option -->
+          <button
+            @click="form.table_number = ''; showTablePicker = false"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 mb-4 transition-all font-semibold text-sm"
+            :class="!form.table_number ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 hover:border-gray-400 text-gray-600'"
+          >
+            <span class="text-2xl">🚶</span>
+            <span>Walk-in / No Table</span>
+            <span v-if="!form.table_number" class="ml-auto text-amber-500">✓</span>
+          </button>
+
+          <!-- Table grid -->
+          <div class="grid grid-cols-4 gap-3 max-h-72 overflow-y-auto">
+            <button
+              v-for="t in availableTables"
+              :key="t.id"
+              @click="form.table_number = t.table_number; showTablePicker = false"
+              type="button"
+              class="flex flex-col items-center justify-center gap-1 aspect-square rounded-2xl border-2 font-bold transition-all"
+              :class="form.table_number == t.table_number
+                ? 'border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-200'
+                : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-amber-400 hover:bg-amber-50'"
+            >
+              <span class="text-2xl leading-none">🪑</span>
+              <span class="text-sm">{{ t.table_number }}</span>
+            </button>
+          </div>
+
+          <div v-if="!availableTables.length" class="text-center text-sm text-gray-400 py-6">
+            No tables configured. Add tables in Settings.
           </div>
         </div>
       </div>
@@ -594,7 +680,6 @@
             <span class="text-gray-700">Close / blur</span>
             <kbd class="px-2 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">Esc</kbd>
           </div>
-
           <div class="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 mt-3">Actions</div>
           <div class="flex items-center justify-between py-1 border-b border-gray-50">
             <span class="text-gray-700">Save draft</span>
@@ -612,55 +697,9 @@
             <span class="text-gray-700">Decrement last item qty</span>
             <kbd class="px-2 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">−</kbd>
           </div>
-
-          <div class="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 mt-3">Payment</div>
-          <div class="flex items-center justify-between py-1 border-b border-gray-50">
-            <span class="text-gray-700">Switch to Cash</span>
-            <div class="flex items-center gap-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">Alt</kbd>
-              <span class="text-gray-400 text-xs">+</span>
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">C</kbd>
-            </div>
-          </div>
-          <div class="flex items-center justify-between py-1 border-b border-gray-50">
-            <span class="text-gray-700">Switch to Card</span>
-            <div class="flex items-center gap-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">Alt</kbd>
-              <span class="text-gray-400 text-xs">+</span>
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">D</kbd>
-            </div>
-          </div>
-          <div class="flex items-center justify-between py-1 border-b border-gray-50">
-            <span class="text-gray-700">Toggle split payment</span>
-            <div class="flex items-center gap-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">Alt</kbd>
-              <span class="text-gray-400 text-xs">+</span>
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">S</kbd>
-            </div>
-          </div>
-          <div class="flex items-center justify-between py-1 border-b border-gray-50">
-            <span class="text-gray-700">Set exact amount</span>
-            <div class="flex items-center gap-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">Alt</kbd>
-              <span class="text-gray-400 text-xs">+</span>
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">E</kbd>
-            </div>
-          </div>
-          <div class="flex items-center justify-between py-1 border-b border-gray-50">
-            <span class="text-gray-700">New bill</span>
-            <div class="flex items-center gap-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">Alt</kbd>
-              <span class="text-gray-400 text-xs">+</span>
-              <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">N</kbd>
-            </div>
-          </div>
-          <div class="flex items-center justify-between py-1">
-            <span class="text-gray-700">Toggle this help</span>
-            <kbd class="px-2 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">?</kbd>
-          </div>
         </div>
         <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-400">
-          + / − keys only work when no input field is focused. Alt shortcuts work anytime.
+          Alt+C/D/S/E/N for payment shortcuts.
         </div>
       </div>
     </div>
@@ -702,7 +741,7 @@ import {
   ArrowLeftIcon, PlusIcon, XMarkIcon,
   ShoppingCartIcon, CheckCircleIcon, ArrowPathIcon,
   ExclamationTriangleIcon, QrCodeIcon, MagnifyingGlassIcon, ShoppingBagIcon,
-  QuestionMarkCircleIcon,
+  QuestionMarkCircleIcon, TableCellsIcon, ChevronDownIcon,
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -717,13 +756,10 @@ const draftBills      = ref([])
 const loadingDraft    = ref(false)
 const activeDraftId   = ref(null)
 
-// Product browser state
 const activeCategory    = ref('All')
 const productGridSearch = ref('')
 const gridFocusIndex    = ref(-1)
-const GRID_COLS = { base: 3, xl: 4, '2xl': 5 }
 
-// Form
 const form = reactive({
   customer_id: '', payment_method: 'cash', payment_status: 'paid',
   discount: 0, tax: 0, tax_rate: 0, amount_paid: 0, notes: '',
@@ -734,20 +770,18 @@ const selectedTaxId  = ref('')
 const discountType   = ref('fixed') // 'fixed' | 'percent'
 const discountInput  = ref(0)
 
-// Split payment state
 const splitPayment        = ref(false)
 const splitCash           = ref(0)
 const splitCard           = ref(0)
 const splitCardReference  = ref('')
+const amountManuallySet   = ref(false)
 
-// Keyboard shortcut refs
 const searchInputRef   = ref(null)
 const barcodeInputRef  = ref(null)
 const amountInputRef   = ref(null)
 const showKbHelp       = ref(false)
 const kbShortcutsEnabled = ref(localStorage.getItem('pos_keyboard_shortcuts') !== 'false')
 
-// UI state
 const saving              = ref(false)
 const error               = ref('')
 const showNewCustomer     = ref(false)
@@ -755,15 +789,66 @@ const savingCustomer      = ref(false)
 const newCustomerError    = ref('')
 const newCustomer         = reactive({ name: '', phone: '', email: '' })
 const showPricingDetails  = ref(false)
+const showTablePicker     = ref(false)
 
-// Barcode
 const barcodeInput = ref('')
 const barcodeError = ref('')
 let barcodeClearTimer = null
 
-// Open bottle picker
 const openBottlePicker = reactive({ show: false, item: null, bottles: [], loading: false })
 
+// Kitchen notes quick buttons
+const kitchenNotes = ['No Ice', 'Less Sugar', 'Extra Spicy', 'No Onion', 'Well Done', 'Medium', 'No Garnish']
+
+function toggleKitchenNote(item, note) {
+  const current = item.item_notes || ''
+  if (current.includes(note)) {
+    item.item_notes = current.replace(note, '').replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim()
+  } else {
+    item.item_notes = current ? `${current}, ${note}` : note
+  }
+}
+
+// Category colors and emojis
+const categoryColorMap = [
+  'bg-red-500', 'bg-blue-500', 'bg-emerald-500', 'bg-violet-500',
+  'bg-orange-500', 'bg-teal-500', 'bg-pink-500', 'bg-indigo-500',
+  'bg-rose-500', 'bg-cyan-500', 'bg-lime-500', 'bg-fuchsia-500',
+]
+
+function getCategoryActiveBg(cat, idx) {
+  if (cat === 'All') return 'bg-amber-500'
+  return categoryColorMap[idx % categoryColorMap.length] || 'bg-amber-500'
+}
+
+function getCategoryEmoji(name) {
+  const lower = (name || '').toLowerCase()
+  if (lower === 'all') return '🏪'
+  if (lower.includes('liquor') || lower.includes('beer') || lower.includes('alcohol')) return '🍺'
+  if (lower.includes('whisky') || lower.includes('whiskey') || lower.includes('bourbon')) return '🥃'
+  if (lower.includes('wine')) return '🍷'
+  if (lower.includes('vodka') || lower.includes('gin') || lower.includes('rum')) return '🍸'
+  if (lower.includes('food') || lower.includes('meal') || lower.includes('main')) return '🍽️'
+  if (lower.includes('snack') || lower.includes('starter') || lower.includes('appetizer')) return '🍟'
+  if (lower.includes('dessert') || lower.includes('cake') || lower.includes('sweet')) return '🍰'
+  if (lower.includes('coffee') || lower.includes('espresso')) return '☕'
+  if (lower.includes('tea')) return '🍵'
+  if (lower.includes('juice') || lower.includes('soft') || lower.includes('soda')) return '🥤'
+  if (lower.includes('water')) return '💧'
+  if (lower.includes('rice') || lower.includes('pasta') || lower.includes('noodle')) return '🍜'
+  if (lower.includes('chicken') || lower.includes('beef') || lower.includes('pork') || lower.includes('meat')) return '🍗'
+  if (lower.includes('fish') || lower.includes('seafood') || lower.includes('shrimp')) return '🐟'
+  if (lower.includes('veg') || lower.includes('salad')) return '🥗'
+  return '📦'
+}
+
+// Payment options with icons
+const paymentOptions = [
+  { value: 'cash', label: 'Cash', icon: '💵' },
+  { value: 'card', label: 'Card', icon: '💳' },
+]
+
+// ── Open bottle picker ─────────────────────────────────
 async function showOpenBottlePicker(item) {
   openBottlePicker.item = item
   openBottlePicker.bottles = []
@@ -783,7 +868,6 @@ function selectOpenBottle(bottle) {
   item.open_bottle_ref = bottle
   item.serving_ml = 0
   item.quantity = 1
-  // Price = proportion of remaining volume × full bottle selling price
   const openingVol = bottle.opening_volume_ml || 1
   const remainingVol = bottle.remaining_volume_ml || 0
   const basePrice = Number(item.product_ref?.selling_price || item.unit_price || 0)
@@ -798,7 +882,7 @@ function clearOpenBottle(item) {
   recalcItem(item)
 }
 
-// Scanner
+// ── Scanner ────────────────────────────────────────────
 const scannerOpen     = ref(false)
 const scannerVideo    = ref(null)
 const scannerDetected = ref('')
@@ -809,11 +893,6 @@ let scannerStream   = null
 let scannerDetector = null
 let scannerFrame    = null
 let scannerBusy     = false
-
-const paymentOptions = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
-]
 
 function toggleSplit() {
   splitPayment.value = !splitPayment.value
@@ -860,8 +939,6 @@ const gridProducts = computed(() => {
 
 watch(gridProducts, () => { gridFocusIndex.value = -1 })
 
-const selectedCustomer = computed(() => customers.value.find(c => c.id == form.customer_id) ?? null)
-
 const subtotal   = computed(() => form.items.reduce((s, i) => s + (i._lineTotal || 0), 0))
 const total      = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.tax || 0)))
 const totalPaid  = computed(() => splitPayment.value
@@ -897,7 +974,6 @@ function isStockTracked(product) {
 function addProductFromGrid(product) {
   if (isStockTracked(product) && product.stock_quantity < 1) return
   const isLiquor = LIQUOR_TYPES.includes(String(product?.product_type ?? '').toLowerCase())
-  // Liquor products always get a new line so each shot can have its own serving_ml
   if (!isLiquor) {
     const existing = form.items.find(i => i.product_id == product.id)
     if (existing) {
@@ -930,6 +1006,7 @@ function newItem() {
     empty_bottle_returned: false, bottle_deposit_amount: 100, serving_ml: 0,
     open_bottle_id: null, open_bottle_ref: null,
     product_ref: null, _lineTotal: 0,
+    item_notes: '', item_notes_custom: '',
   }
 }
 
@@ -987,7 +1064,9 @@ function recalc() {
   if (form.tax_rate > 0) {
     form.tax = Math.round(subtotal.value * (form.tax_rate / 100) * 100) / 100
   }
-  form.amount_paid = total.value
+  if (!amountManuallySet.value) {
+    form.amount_paid = total.value
+  }
 }
 
 function applyTax() {
@@ -1026,6 +1105,7 @@ function resetForm() {
   splitCash.value           = 0
   splitCard.value           = 0
   splitCardReference.value  = ''
+  amountManuallySet.value   = false
   selectedTaxId.value       = ''
   discountType.value        = 'fixed'
   discountInput.value       = 0
@@ -1061,6 +1141,8 @@ async function loadDraft(draft) {
       bottle_deposit_amount: 100,
       product_ref:           si.product,
       _lineTotal:            0,
+      item_notes:            '',
+      item_notes_custom:     '',
     }))
     form.items.forEach(recalcItem)
   } finally {
@@ -1094,7 +1176,6 @@ function processBarcode(code) {
   const normalized = (code ?? '').trim()
   barcodeInput.value = ''
   if (!normalized) return
-
   const product = products.value.find(p =>
     p.barcode?.toLowerCase() === normalized.toLowerCase() ||
     p.sku?.toLowerCase() === normalized.toLowerCase()
@@ -1193,6 +1274,7 @@ async function submit(billStatus) {
         bottle_deposit_amount: i.bottle_deposit_amount,
         serving_ml:            i.serving_ml,
         open_bottle_id:        i.open_bottle_id || null,
+        item_notes:            [i.item_notes, i.item_notes_custom].filter(Boolean).join(', ') || null,
       })),
     }
 
@@ -1225,81 +1307,32 @@ function isTypingInInput() {
 
 function handleKeydown(e) {
   if (!kbShortcutsEnabled.value) return
-
-  // ── F-keys: work regardless of focus ──
-  if (e.key === 'F1') {
-    e.preventDefault()
-    searchInputRef.value?.focus()
-    searchInputRef.value?.select()
-    return
-  }
-  if (e.key === 'F2') {
-    e.preventDefault()
-    barcodeInputRef.value?.focus()
-    barcodeInputRef.value?.select()
-    return
-  }
-  if (e.key === 'F3') {
-    e.preventDefault()
-    amountInputRef.value?.focus()
-    amountInputRef.value?.select()
-    return
-  }
-  if (e.key === 'F9') {
-    e.preventDefault()
-    if (!saving.value && form.items.some(i => i.product_id)) submit('draft')
-    return
-  }
-  if (e.key === 'F10') {
-    e.preventDefault()
-    if (!saving.value && form.items.some(i => i.product_id)) submit('completed')
-    return
-  }
-
-  // ── Escape: close modals / blur ──
+  if (e.key === 'F1') { e.preventDefault(); searchInputRef.value?.focus(); searchInputRef.value?.select(); return }
+  if (e.key === 'F2') { e.preventDefault(); barcodeInputRef.value?.focus(); barcodeInputRef.value?.select(); return }
+  if (e.key === 'F3') { e.preventDefault(); amountInputRef.value?.focus(); amountInputRef.value?.select(); return }
+  if (e.key === 'F9') { e.preventDefault(); if (!saving.value && form.items.some(i => i.product_id)) submit('draft'); return }
+  if (e.key === 'F10') { e.preventDefault(); if (!saving.value && form.items.some(i => i.product_id)) submit('completed'); return }
   if (e.key === 'Escape') {
+    if (showTablePicker.value)      { showTablePicker.value = false; return }
     if (openBottlePicker.show) { openBottlePicker.show = false; return }
     if (scannerOpen.value)     { closeScanner(); return }
     if (showKbHelp.value)      { showKbHelp.value = false; return }
     document.activeElement?.blur()
     return
   }
-
-  // ── Alt+key combos: work even when typing ──
   if (e.altKey) {
     switch (e.key.toLowerCase()) {
-      case 'c':
-        e.preventDefault()
-        form.payment_method = 'cash'
-        splitPayment.value = false
+      case 'c': e.preventDefault(); form.payment_method = 'cash'; splitPayment.value = false; break
+      case 'd': e.preventDefault(); form.payment_method = 'card'; splitPayment.value = false; break
+      case 's': e.preventDefault(); toggleSplit(); break
+      case 'e': e.preventDefault()
+        if (splitPayment.value) { splitCash.value = total.value; splitCard.value = 0 }
+        else { form.amount_paid = total.value }
         break
-      case 'd':
-        e.preventDefault()
-        form.payment_method = 'card'
-        splitPayment.value = false
-        break
-      case 's':
-        e.preventDefault()
-        toggleSplit()
-        break
-      case 'e':
-        e.preventDefault()
-        if (splitPayment.value) {
-          splitCash.value = total.value
-          splitCard.value = 0
-        } else {
-          form.amount_paid = total.value
-        }
-        break
-      case 'n':
-        e.preventDefault()
-        resetForm()
-        break
+      case 'n': e.preventDefault(); resetForm(); break
     }
     return
   }
-
-  // ── Non-input shortcuts: only fire when not typing ──
   // Allow arrow keys from the product search input to enter grid navigation
   const fromSearch = document.activeElement === searchInputRef.value
   if (fromSearch && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
@@ -1309,7 +1342,7 @@ function handleKeydown(e) {
   // ── Product grid arrow key navigation ──
   const gridLen = gridProducts.value.length
   if (gridLen > 0 && ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) {
-    const cols = window.innerWidth >= 1536 ? 5 : window.innerWidth >= 1280 ? 4 : 3
+    const cols = window.innerWidth >= 1536 ? 4 : window.innerWidth >= 1280 ? 3 : 2
     if (e.key === 'ArrowRight') {
       e.preventDefault()
       gridFocusIndex.value = gridFocusIndex.value < gridLen - 1 ? gridFocusIndex.value + 1 : 0
@@ -1344,11 +1377,7 @@ function handleKeydown(e) {
     return
   }
 
-  if (e.key === '?') {
-    e.preventDefault()
-    showKbHelp.value = !showKbHelp.value
-    return
-  }
+  if (e.key === '?') { e.preventDefault(); showKbHelp.value = !showKbHelp.value; return }
   if (e.key === '+' || e.key === '=' || e.key === 'Add') {
     e.preventDefault()
     const last = [...form.items].reverse().find(i => i.product_id)
@@ -1382,18 +1411,15 @@ onMounted(async () => {
   availableTables.value = tb.data
   draftBills.value      = drafts.data.data
 
-  // Default to Liquor category if it exists
   const hasLiquor = products.value.some(p => p.category?.name === 'Liquor')
   if (hasLiquor) activeCategory.value = 'Liquor'
 
-  // Auto-load a specific draft when coming from the Edit button
   const draftId = route.query.draft
   if (draftId) {
     const draft = draftBills.value.find(d => d.id == draftId)
     if (draft) {
       await loadDraft(draft)
     } else {
-      // Draft not in the list (e.g. different page) — fetch it directly
       await loadDraft({ id: draftId })
     }
   }

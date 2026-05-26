@@ -24,6 +24,7 @@ const routes = [
             { path: 'suppliers', name: 'suppliers',  component: () => import('@/pages/Suppliers.vue') },
             { path: 'sales',          name: 'sales',          component: () => import('@/pages/Sales.vue') },
             { path: 'sales/new',      name: 'sales.new',      component: () => import('@/pages/NewSale.vue') },
+            { path: 'sales/new2',     name: 'sales.new2',     component: () => import('@/pages/NewSale2.vue') },
             { path: 'sales/:id/edit', name: 'sales.edit',     component: () => import('@/pages/EditDraft.vue') },
             { path: 'sales/:id',      name: 'sales.receipt',  component: () => import('@/pages/SaleReceipt.vue') },
             { path: 'tables',         name: 'tables',         component: () => import('@/pages/Tables.vue') },

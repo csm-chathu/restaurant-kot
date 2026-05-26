@@ -18,6 +18,7 @@ class ChartOfAccountSeeder extends Seeder
             ['code' => '2200', 'name' => 'Bottle Deposit Liability', 'type' => 'liability'],
             ['code' => '3000', 'name' => 'Owner Equity', 'type' => 'equity'],
             ['code' => '4000', 'name' => 'Sales Revenue', 'type' => 'revenue'],
+            ['code' => '4050', 'name' => 'Sales Discounts', 'type' => 'revenue'],
             ['code' => '4100', 'name' => 'Other Income', 'type' => 'revenue'],
             ['code' => '5000', 'name' => 'Cost Of Goods Sold', 'type' => 'expense'],
             ['code' => '5100', 'name' => 'Damage Expense', 'type' => 'expense'],

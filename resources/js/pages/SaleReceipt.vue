@@ -156,12 +156,29 @@
         <hr class="receipt-divider" />
 
         <div style="font-size:11px;">
-          <div v-for="(payment, index) in sale.payments || []" :key="payment.id ?? index" style="display:flex; justify-content:space-between; margin-bottom:2px;">
-            <span>{{ payment.payment_method?.replace('_', ' ') }}</span><span>LKR {{ lkr(payment.amount) }}</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-            <span>Paid</span><span>LKR {{ lkr(sale.amount_paid) }}</span>
-          </div>
+          <!-- Split / multi-payment breakdown -->
+          <template v-if="sale.payments && sale.payments.length > 1">
+            <div v-for="(payment, index) in sale.payments" :key="payment.id ?? index"
+              style="display:flex; justify-content:space-between; margin-bottom:2px; font-weight:600;">
+              <span style="text-transform:capitalize;">{{ payment.payment_method?.replace(/_/g, ' ') }}</span>
+              <span>LKR {{ lkr(payment.amount) }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:2px; border-top:1px dashed #999; padding-top:2px; font-weight:bold;">
+              <span>Total Paid</span><span>LKR {{ lkr(sale.amount_paid) }}</span>
+            </div>
+          </template>
+          <!-- Single payment -->
+          <template v-else>
+            <div v-if="sale.payments && sale.payments.length === 1"
+              style="display:flex; justify-content:space-between; margin-bottom:2px;">
+              <span style="text-transform:capitalize;">{{ sale.payments[0].payment_method?.replace(/_/g, ' ') }}</span>
+              <span>LKR {{ lkr(sale.payments[0].amount) }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+              <span>Paid</span><span>LKR {{ lkr(sale.amount_paid) }}</span>
+            </div>
+          </template>
+          <!-- Change / balance due -->
           <div v-if="Number(sale.amount_paid) > Number(sale.total)"
             style="display:flex; justify-content:space-between; font-weight:bold;">
             <span>Change</span><span>LKR {{ lkr(Number(sale.amount_paid) - Number(sale.total)) }}</span>
@@ -407,6 +424,10 @@ onMounted(async () => {
     sale.value = saleRes.data
     restaurant.value = settingsRes.data || {}
     await nextTick()
+
+    if (route.query.print === '1') {
+      setTimeout(printReceipt, 400)
+    }
   } catch {
     sale.value = null
   } finally {

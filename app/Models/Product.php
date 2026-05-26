@@ -59,6 +59,11 @@ class Product extends Model
         return $this->stock_quantity <= $this->min_stock_level;
     }
 
+    public function isStockTracked(): bool
+    {
+        return strtolower((string) $this->product_type) !== 'food';
+    }
+
     public function getImageAttribute($value): ?string
     {
         if (!$value) {

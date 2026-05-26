@@ -20,6 +20,7 @@ class AccountingService
     public const ACC_TAX_PAYABLE = '2100';
     public const ACC_BOTTLE_DEPOSIT = '2200';
     public const ACC_SALES = '4000';
+    public const ACC_SALES_DISCOUNT = '4050';
     public const ACC_OTHER_INCOME = '4100';
     public const ACC_COGS = '5000';
     public const ACC_DAMAGE_EXP = '5100';
@@ -37,10 +38,13 @@ class AccountingService
             return null;
         }
 
-        $tax = max(0, round((float) $sale->tax, 2));
-        $revenue = max(0, round($total - $tax, 2));
-        $paid = max(0, min($total, round((float) ($sale->amount_paid ?? 0), 2)));
-        $receivable = max(0, round($total - $paid, 2));
+        $tax      = max(0, round((float) $sale->tax, 2));
+        $discount = max(0, round((float) $sale->discount, 2));
+        // Gross revenue = net revenue + discount (total − tax is net; add back discount for gross)
+        $netRevenue   = max(0, round($total - $tax, 2));
+        $grossRevenue = max(0, round($netRevenue + $discount, 2));
+        $paid         = max(0, min($total, round((float) ($sale->amount_paid ?? 0), 2)));
+        $receivable   = max(0, round($total - $paid, 2));
 
         $cogs = round((float) $sale->items()->with('product:id,purchase_price')->get()
             ->sum(fn($item) => ((float) $item->quantity) * ((float) ($item->product?->purchase_price ?? 0))), 2);
@@ -53,8 +57,11 @@ class AccountingService
         if ($receivable > 0) {
             $lines[] = ['code' => self::ACC_AR, 'debit' => $receivable, 'credit' => 0, 'memo' => 'Outstanding amount'];
         }
-        if ($revenue > 0) {
-            $lines[] = ['code' => self::ACC_SALES, 'debit' => 0, 'credit' => $revenue, 'memo' => 'Sales revenue'];
+        if ($discount > 0) {
+            $lines[] = ['code' => self::ACC_SALES_DISCOUNT, 'debit' => $discount, 'credit' => 0, 'memo' => 'Sales discount granted'];
+        }
+        if ($grossRevenue > 0) {
+            $lines[] = ['code' => self::ACC_SALES, 'debit' => 0, 'credit' => $grossRevenue, 'memo' => 'Gross sales revenue'];
         }
         if ($tax > 0) {
             $lines[] = ['code' => self::ACC_TAX_PAYABLE, 'debit' => 0, 'credit' => $tax, 'memo' => 'Tax payable'];

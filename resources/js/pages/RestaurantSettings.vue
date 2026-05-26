@@ -5,6 +5,61 @@
       <p class="text-sm text-gray-500 mt-0.5">Update restaurant name, logo, and address shown in reports and printouts.</p>
     </div>
 
+    <!-- POS Preferences (localStorage, per device) -->
+    <div class="card space-y-4">
+      <div>
+        <h3 class="font-semibold text-gray-800">POS Preferences</h3>
+        <p class="text-sm text-gray-500 mt-0.5">These settings are saved on this device only.</p>
+      </div>
+      <!-- Bill layout picker -->
+      <div class="flex items-center justify-between py-3 border-t border-gray-100">
+        <div>
+          <p class="text-sm font-medium text-gray-800">POS Bill Layout</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Choose which New Bill page to use on this device.<br />
+            <span class="font-medium text-gray-600">Classic</span> — standard compact layout &nbsp;·&nbsp;
+            <span class="font-medium text-gray-600">Enhanced</span> — larger cards, visual table picker, kitchen notes
+          </p>
+        </div>
+        <div class="flex shrink-0 rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold ml-4">
+          <button
+            type="button"
+            @click="setBillLayout('1')"
+            class="px-4 py-2 transition-colors"
+            :class="billLayout === '1' ? 'bg-amber-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'"
+          >Classic</button>
+          <button
+            type="button"
+            @click="setBillLayout('2')"
+            class="px-4 py-2 border-l border-gray-200 transition-colors"
+            :class="billLayout === '2' ? 'bg-amber-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'"
+          >Enhanced</button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between py-3 border-t border-gray-100">
+        <div>
+          <p class="text-sm font-medium text-gray-800">Keyboard Shortcuts</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Enable F-keys and hotkeys on the New Bill page (F1 search, F2 barcode, F3 amount, F9 draft, F10 complete, +/− qty, Alt combos).
+          </p>
+        </div>
+        <button
+          type="button"
+          @click="toggleKbShortcuts"
+          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none"
+          :class="kbShortcutsEnabled ? 'bg-amber-500' : 'bg-gray-300'"
+          :aria-checked="kbShortcutsEnabled"
+          role="switch"
+        >
+          <span
+            class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
+            :class="kbShortcutsEnabled ? 'translate-x-6' : 'translate-x-1'"
+          />
+        </button>
+      </div>
+    </div>
+
     <div class="card space-y-5">
       <div v-if="canSelectBranch" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -88,6 +143,20 @@ const logoFile = ref(null)
 const saving = ref(false)
 const message = ref('')
 const error = ref('')
+
+// POS preferences — stored in localStorage (per device)
+const kbShortcutsEnabled = ref(localStorage.getItem('pos_keyboard_shortcuts') !== 'false')
+const billLayout = ref(localStorage.getItem('pos_bill_layout') || '1')
+
+function toggleKbShortcuts() {
+  kbShortcutsEnabled.value = !kbShortcutsEnabled.value
+  localStorage.setItem('pos_keyboard_shortcuts', kbShortcutsEnabled.value ? 'true' : 'false')
+}
+
+function setBillLayout(v) {
+  billLayout.value = v
+  localStorage.setItem('pos_bill_layout', v)
+}
 
 function onLogoChange(event) {
   const file = event.target.files?.[0]

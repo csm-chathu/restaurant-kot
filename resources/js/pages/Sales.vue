@@ -33,7 +33,7 @@
         <button v-if="search || statusFilter || quickFilter" @click="clearFilters"
           class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
       </div>
-      <router-link to="/sales/new"
+      <router-link :to="newBillRoute"
         class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm shadow-sm transition-colors shrink-0">
         <PlusIcon class="w-4 h-4" /> New Bill
       </router-link>
@@ -195,6 +195,7 @@ import {
 
 const auth         = useAuthStore()
 const isCashier    = computed(() => auth.user?.role === 'cashier')
+const newBillRoute = localStorage.getItem('pos_bill_layout') === '2' ? '/sales/new2' : '/sales/new'
 
 const sales        = ref({ data: [] })
 const search       = ref('')

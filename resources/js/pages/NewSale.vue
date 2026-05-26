@@ -290,7 +290,7 @@
                       <!-- Serving ml picker -->
                       <div class="flex items-center gap-1">
                         <span class="text-xs text-gray-400">ml:</span>
-                        <button v-for="size in [30, 50, 60, 75]" :key="size"
+                        <button v-for="size in ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name) ? [25, 50] : [30, 50, 60, 75]" :key="size"
                           @click="item.serving_ml = size; recalcItem(item)" type="button"
                           class="px-1.5 py-0.5 text-xs font-semibold rounded transition-colors"
                           :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"

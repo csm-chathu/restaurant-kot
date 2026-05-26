@@ -897,6 +897,7 @@ function isStockTracked(product) {
 function addProductFromGrid(product) {
   if (isStockTracked(product) && product.stock_quantity < 1) return
   const isLiquor = LIQUOR_TYPES.includes(String(product?.product_type ?? '').toLowerCase())
+    || ['Hard Liquor', 'Foreign Liquor'].includes(product?.category?.name)
   // Liquor products always get a new line so each shot can have its own serving_ml
   if (!isLiquor) {
     const existing = form.items.find(i => i.product_id == product.id)

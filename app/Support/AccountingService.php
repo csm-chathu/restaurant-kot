@@ -46,8 +46,22 @@ class AccountingService
         $paid         = max(0, min($total, round((float) ($sale->amount_paid ?? 0), 2)));
         $receivable   = max(0, round($total - $paid, 2));
 
-        $cogs = round((float) $sale->items()->with('product:id,purchase_price')->get()
-            ->sum(fn($item) => ((float) $item->quantity) * ((float) ($item->product?->purchase_price ?? 0))), 2);
+        $cogs = round((float) $sale->items()->with('product:id,purchase_price,base_unit')->get()
+            ->sum(function ($item) {
+                $qty           = (float) $item->quantity;
+                $purchasePrice = (float) ($item->product?->purchase_price ?? 0);
+                $servingMl     = (float) ($item->serving_ml ?? 0);
+
+                if ($servingMl > 0 && $item->product?->base_unit) {
+                    preg_match('/([0-9]+(?:\.[0-9]+)?)\s*ml/i', (string) $item->product->base_unit, $m);
+                    $baseMl = isset($m[1]) ? (float) $m[1] : 0;
+                    if ($baseMl > 0) {
+                        return $qty * ($servingMl / $baseMl) * $purchasePrice;
+                    }
+                }
+
+                return $qty * $purchasePrice;
+            }), 2);
 
         $lines = [];
 

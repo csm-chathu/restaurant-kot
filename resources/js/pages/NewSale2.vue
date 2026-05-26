@@ -1111,6 +1111,7 @@ function resetForm() {
   discountInput.value       = 0
   error.value               = ''
   showPricingDetails.value  = false
+  nextTick(() => barcodeInputRef.value?.focus())
 }
 
 // ── Draft loading ──────────────────────────────────────
@@ -1184,16 +1185,19 @@ function processBarcode(code) {
     barcodeError.value = `"${normalized}" not found`
     clearTimeout(barcodeClearTimer)
     barcodeClearTimer = setTimeout(() => { barcodeError.value = '' }, 3000)
+    nextTick(() => barcodeInputRef.value?.focus())
     return
   }
   if (isStockTracked(product) && product.stock_quantity < 1) {
     barcodeError.value = `"${product.name}" is out of stock`
     clearTimeout(barcodeClearTimer)
     barcodeClearTimer = setTimeout(() => { barcodeError.value = '' }, 3000)
+    nextTick(() => barcodeInputRef.value?.focus())
     return
   }
   addProductFromGrid(product)
   barcodeError.value = ''
+  nextTick(() => barcodeInputRef.value?.focus())
 }
 
 function onSearchInput() {

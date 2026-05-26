@@ -132,7 +132,7 @@
                 </td>
                 <td class="table-td text-center">
                   <div class="flex items-center justify-center gap-1.5">
-                    <router-link v-if="s.status === 'draft'" :to="{ name: 'sales.new', query: { draft: s.id } }"
+                    <router-link v-if="s.status === 'draft'" :to="{ name: localStorage.getItem('pos_bill_layout') === '2' ? 'sales.new2' : 'sales.new', query: { draft: s.id } }"
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200">
                       <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
                     </router-link>

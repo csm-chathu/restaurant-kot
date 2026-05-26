@@ -297,7 +297,7 @@
                       </span>
 
                       <!-- Liquor options -->
-                      <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type)">
+                      <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type) || ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name)">
                         <template v-if="item.open_bottle_id">
                           <div class="flex items-center gap-1">
                             <span class="text-xs text-gray-400">Price:</span>

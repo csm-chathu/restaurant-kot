@@ -274,7 +274,7 @@
                   </div>
 
                   <!-- Opened bottle badge OR sell opened bottle button -->
-                  <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type)">
+                  <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type) || ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name)">
                     <template v-if="item.open_bottle_id">
                       <!-- Show which opened bottle is linked + editable price + clear -->
                       <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">

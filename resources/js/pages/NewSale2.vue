@@ -1027,6 +1027,7 @@ function getEffectiveUnitPrice(item) {
   const baseUnitPrice = Number(item.unit_price || 0)
   const servingMl = Number(item.serving_ml || 0)
   const isLiquor = String(item.product_ref?.product_type || '').toLowerCase() === 'liquor'
+    || ['Hard Liquor', 'Foreign Liquor'].includes(item.product_ref?.category?.name)
   if (!isLiquor || servingMl <= 0) return baseUnitPrice
   const baseMl = parseBaseUnitMl(item.product_ref?.base_unit)
   if (baseMl <= 0) return baseUnitPrice

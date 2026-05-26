@@ -80,7 +80,7 @@ class SaleController extends Controller
             // Pre-validate items
             $itemData = [];
             foreach ($data['items'] as $item) {
-                $product = Product::findOrFail($item['product_id']);
+                $product = Product::with('category')->findOrFail($item['product_id']);
                 if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
@@ -211,7 +211,7 @@ class SaleController extends Controller
 
                     if ($openBottleId) {
                         $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
-                    } elseif ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
+                    } elseif ($servingMl > 0 && (in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true) || in_array($i['product']->category?->name, ['Hard Liquor', 'Foreign Liquor'], true))) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
                     } elseif ($i['product']->isStockTracked()) {
                         $i['product']->decrement('stock_quantity', $i['qty']);
@@ -475,7 +475,7 @@ class SaleController extends Controller
 
             $itemData = [];
             foreach ($data['items'] as $item) {
-                $product = Product::findOrFail($item['product_id']);
+                $product = Product::with('category')->findOrFail($item['product_id']);
                 if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
                     throw new \Exception("Product not available for your branch: {$product->name}");
                 }
@@ -556,7 +556,7 @@ class SaleController extends Controller
 
                     if ($openBottleId) {
                         $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
-                    } elseif ($servingMl > 0 && in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true)) {
+                    } elseif ($servingMl > 0 && (in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true) || in_array($i['product']->category?->name, ['Hard Liquor', 'Foreign Liquor'], true))) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
                     } elseif ($i['product']->isStockTracked()) {
                         $i['product']->decrement('stock_quantity', $i['qty']);

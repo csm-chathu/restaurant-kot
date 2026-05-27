@@ -14,6 +14,10 @@ class ProductController extends Controller
     {
         $user = request()->user();
         $products = Product::with(['category:id,name', 'supplier:id,name', 'taxSetting:id,name,rate'])
+            ->withSum(['openBottles as open_bottles_remaining_ml' => fn($q) => $q
+                ->where('status', 'open')
+                ->when(!$user->isAdmin(), fn($q2) => $q2->where('branch_id', $user->branch_id))
+            ], 'remaining_volume_ml')
             ->when(request('search'), fn($q, $s) => $q->where(function ($inner) use ($s) {
                 $inner->where('name', 'like', "%$s%")
                     ->orWhere('sku', 'like', "%$s%")

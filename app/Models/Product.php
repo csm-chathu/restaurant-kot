@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\OpenBottle;
 
 class Product extends Model
 {
@@ -39,6 +40,11 @@ class Product extends Model
     public function taxSetting()
     {
         return $this->belongsTo(TaxSetting::class);
+    }
+
+    public function openBottles()
+    {
+        return $this->hasMany(OpenBottle::class);
     }
 
     public function saleItems()

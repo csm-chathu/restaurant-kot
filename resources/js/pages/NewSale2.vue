@@ -124,10 +124,10 @@
               :key="product.id"
               :data-grid-idx="idx"
               @click="addProductFromGrid(product)"
-              :disabled="isStockTracked(product) && product.stock_quantity < 1"
+              :disabled="isStockTracked(product) && product.stock_quantity < 1 && !(product.open_bottles_remaining_ml > 0)"
               type="button"
               class="relative flex flex-col rounded-2xl border-2 text-left transition-all select-none overflow-hidden group bg-white"
-              :class="isStockTracked(product) && product.stock_quantity < 1
+              :class="isStockTracked(product) && product.stock_quantity < 1 && !(product.open_bottles_remaining_ml > 0)
                 ? 'border-gray-100 opacity-40 cursor-not-allowed'
                 : gridFocusIndex === idx
                   ? 'border-amber-500 ring-2 ring-amber-400 shadow-xl shadow-amber-100'
@@ -149,7 +149,7 @@
                 </div>
                 <!-- Overlay quick-add button -->
                 <div class="absolute inset-x-0 bottom-0 py-2 px-2 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-end"
-                     v-if="!(isStockTracked(product) && product.stock_quantity < 1)">
+                     v-if="!(isStockTracked(product) && product.stock_quantity < 1 && !(product.open_bottles_remaining_ml > 0))">
                   <span class="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">+</span>
                 </div>
               </div>
@@ -164,8 +164,13 @@
                   </span>
                 </div>
                 <p v-if="isStockTracked(product)" class="text-xs"
-                  :class="product.stock_quantity <= product.min_stock_level ? 'text-red-500' : 'text-gray-400'">
-                  {{ product.stock_quantity <= product.min_stock_level ? '⚠ ' : '' }}{{ product.stock_quantity }} in stock
+                  :class="product.stock_quantity < 1 && product.open_bottles_remaining_ml > 0 ? 'text-blue-500' : product.stock_quantity <= product.min_stock_level ? 'text-red-500' : 'text-gray-400'">
+                  <template v-if="product.stock_quantity < 1 && product.open_bottles_remaining_ml > 0">
+                    ~{{ Math.round(product.open_bottles_remaining_ml) }}ml open
+                  </template>
+                  <template v-else>
+                    {{ product.stock_quantity <= product.min_stock_level ? '⚠ ' : '' }}{{ product.stock_quantity }} in stock
+                  </template>
                 </p>
               </div>
             </button>
@@ -251,7 +256,7 @@
                 <div v-if="!item.product_id" class="space-y-1.5">
                   <select v-model="item.product_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-amber-500" @change="fillProduct(item)">
                     <option value="">— Select product —</option>
-                    <option v-for="p in products" :key="p.id" :value="p.id" :disabled="isStockTracked(p) && p.stock_quantity < 1">
+                    <option v-for="p in products" :key="p.id" :value="p.id" :disabled="isStockTracked(p) && p.stock_quantity < 1 && !(p.open_bottles_remaining_ml > 0)">
                       {{ p.name }} {{ isStockTracked(p) ? '(' + p.stock_quantity + ')' : '' }}
                     </option>
                   </select>
@@ -290,7 +295,7 @@
                       <span class="w-8 text-center text-base font-bold text-gray-900">{{ item.quantity }}</span>
                       <button
                         @click="item.quantity++; recalcItem(item)"
-                        :disabled="!!item.open_bottle_id"
+                        :disabled="!!item.open_bottle_id || maxShotsFromOpenBottle(item) !== null && item.quantity >= maxShotsFromOpenBottle(item)"
                         class="w-9 h-9 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xl leading-none transition-colors disabled:opacity-30 disabled:cursor-not-allowed border border-amber-200"
                       >+</button>
                     </div>
@@ -337,6 +342,10 @@
                               ? 'bg-purple-600 text-white border-purple-600'
                               : 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100'"
                           >{{ v.name }} · LKR {{ lkr(v.price) }}</button>
+                          <span v-if="maxShotsFromOpenBottle(item) !== null"
+                            class="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">
+                            {{ maxShotsFromOpenBottle(item) }} shots left
+                          </span>
                           <button v-if="item.selected_shot_variant"
                             @click="item.selected_shot_variant = null; recalcItem(item)"
                             type="button"
@@ -982,7 +991,7 @@ function isStockTracked(product) {
 }
 
 function addProductFromGrid(product) {
-  if (isStockTracked(product) && product.stock_quantity < 1) return
+  if (isStockTracked(product) && product.stock_quantity < 1 && !(product.open_bottles_remaining_ml > 0)) return
   const isLiquor = LIQUOR_TYPES.includes(String(product?.product_type ?? '').toLowerCase())
     || ['Hard Liquor', 'Foreign Liquor'].includes(product?.category?.name)
   if (!isLiquor) {
@@ -1227,9 +1236,17 @@ function processBarcode(code) {
   nextTick(() => barcodeInputRef.value?.focus())
 }
 
+function maxShotsFromOpenBottle(item) {
+  const remaining = item.product_ref?.open_bottles_remaining_ml
+  const ml = item.serving_ml || (item.selected_shot_variant ? Number(item.selected_shot_variant.name) : 0)
+  if (!remaining || !ml || item.product_ref?.stock_quantity > 0) return null
+  return Math.floor(remaining / ml)
+}
+
 function selectShotVariant(item, variant) {
-  item.selected_shot_variant = item.selected_shot_variant?.name === variant.name ? null : variant
-  item.serving_ml = 0
+  const toggled = item.selected_shot_variant?.name === variant.name ? null : variant
+  item.selected_shot_variant = toggled
+  item.serving_ml = toggled ? (Number(toggled.name) || 0) : 0
   recalcItem(item)
 }
 
@@ -1309,7 +1326,7 @@ async function submit(billStatus) {
         discount:              i.discount,
         empty_bottle_returned: i.empty_bottle_returned,
         bottle_deposit_amount: i.bottle_deposit_amount,
-        serving_ml:            i.serving_ml,
+        serving_ml:            i.selected_shot_variant ? (Number(i.selected_shot_variant.name) || i.serving_ml) : i.serving_ml,
         open_bottle_id:        i.open_bottle_id || null,
         item_notes:            [i.item_notes, i.item_notes_custom].filter(Boolean).join(', ') || null,
       })),

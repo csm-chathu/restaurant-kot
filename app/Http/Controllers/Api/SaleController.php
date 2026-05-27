@@ -633,7 +633,7 @@ class SaleController extends Controller
     private function authorizeBranch(?int $branchId): void
     {
         $user = request()->user();
-        if (!$user->isAdmin() && $user->branch_id !== $branchId) {
+        if (!$user->isAdmin() && (int) $user->branch_id !== (int) $branchId) {
             abort(403, 'Forbidden for this branch.');
         }
     }

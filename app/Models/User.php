@@ -49,6 +49,7 @@ class User extends Authenticatable
         'can_override_gold_rate'   => 'boolean',
         'can_delete_transactions'  => 'boolean',
         'is_active'                => 'boolean',
+        'branch_id'                => 'integer',
     ];
 
     public function canOverrideGoldRate(): bool

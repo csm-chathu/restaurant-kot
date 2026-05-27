@@ -203,9 +203,9 @@
           <div style="font-weight:bold;">*** Thank You! Come Again ***</div>
           <div style="font-size:10px; color:#222;">{{ formatDate(sale.sold_at) }}</div>
           <div style="font-size:10px; font-weight:600; margin-top:3px; letter-spacing:0.5px;">www.lumac.lk</div>
-          <div v-if="whatsappQr" style="margin-top:6px; display:flex; flex-direction:column; align-items:center; gap:2px;">
-            <img :src="whatsappQr" alt="WhatsApp QR" class="receipt-qr" style="width:72px; height:72px; display:block;" />
-            <div style="font-size:11px; font-weight:bold; color:#222;">Scan to WhatsApp us</div>
+          <div v-if="whatsappQr" style="margin-top:6px; display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+            <img :src="whatsappQr" alt="WhatsApp QR" class="receipt-qr" style="width:48px; height:48px; display:block;" />
+            <div style="font-size:9px; font-weight:bold; color:#222;">Scan to WhatsApp us</div>
           </div>
         </div>
 
@@ -444,7 +444,7 @@ onMounted(async () => {
 /* ── Screen preview ─────────────────────────────────────── */
 .receipt-paper {
   width: 287px;           /* 76mm ≈ 287px at 96dpi */
-  padding: 16px 14px;
+  padding: 16px 22px 16px 14px;
   margin: 0 auto 32px;
   background: #fff;
   box-shadow: 0 0 0 1px #e5e7eb, 0 4px 24px rgba(0,0,0,0.08);
@@ -507,7 +507,7 @@ onMounted(async () => {
     width: 75mm !important;
     max-width: 75mm !important;
     margin: 0 !important;
-    padding: 4mm 4mm 4mm 3mm !important;
+    padding: 4mm 7mm 4mm 3mm !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     font-size: 11pt !important;
@@ -538,8 +538,8 @@ onMounted(async () => {
   /* QR code print */
   #receipt-wrapper img.receipt-qr {
     display: block !important;
-    width: 72px !important;
-    height: 72px !important;
+    width: 48px !important;
+    height: 48px !important;
   }
 
   @page {

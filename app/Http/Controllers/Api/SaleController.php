@@ -82,7 +82,8 @@ class SaleController extends Controller
             foreach ($data['items'] as $item) {
                 $product = Product::with('category')->findOrFail($item['product_id']);
                 $isOpenBottleSell = !empty($item['open_bottle_id']);
-                if (!$isOpenBottleSell && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
+                $isPourSale = !empty($item['serving_ml']) && $item['serving_ml'] > 0;
+                if (!$isOpenBottleSell && !$isPourSale && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
                 }
 
@@ -474,7 +475,8 @@ class SaleController extends Controller
             foreach ($data['items'] as $item) {
                 $product = Product::with('category')->findOrFail($item['product_id']);
                 $isOpenBottleSell = !empty($item['open_bottle_id']);
-                if ($isCompleting && !$isOpenBottleSell && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
+                $isPourSale = !empty($item['serving_ml']) && $item['serving_ml'] > 0;
+                if ($isCompleting && !$isOpenBottleSell && !$isPourSale && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
                 }
 

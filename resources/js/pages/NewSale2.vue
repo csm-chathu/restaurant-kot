@@ -1153,23 +1153,29 @@ async function loadDraft(draft) {
     form.amount_paid      = 0
     form.notes            = data.notes || ''
     form.table_number     = data.table_number || ''
-    form.items = (data.items || []).map(si => ({
-      product_id:             si.product_id,
-      product_search:         si.product?.name || '',
-      quantity:               Number(si.quantity || 0),
-      unit_price:             Number(si.product?.selling_price ?? si.unit_price ?? 0),
-      discount:               Number(si.discount || 0),
-      serving_ml:             Number(si.serving_ml || 0),
-      empty_bottle_returned:  false,
-      bottle_deposit_amount:  100,
-      open_bottle_id:         null,
-      open_bottle_ref:        null,
-      selected_shot_variant:  null,
-      product_ref:            si.product,
-      _lineTotal:             0,
-      item_notes:             '',
-      item_notes_custom:      '',
-    }))
+    form.items = (data.items || []).map(si => {
+      const product      = si.product
+      const savedPrice   = Number(si.unit_price || 0)
+      const variants     = Array.isArray(product?.shot_variants) ? product.shot_variants : []
+      const shotVariant  = variants.find(v => Number(v.price) === savedPrice) ?? null
+      return {
+        product_id:             si.product_id,
+        product_search:         product?.name || '',
+        quantity:               Number(si.quantity || 0),
+        unit_price:             shotVariant ? savedPrice : Number(product?.selling_price ?? savedPrice),
+        discount:               Number(si.discount || 0),
+        serving_ml:             shotVariant ? 0 : Number(si.serving_ml || 0),
+        empty_bottle_returned:  false,
+        bottle_deposit_amount:  100,
+        open_bottle_id:         null,
+        open_bottle_ref:        null,
+        selected_shot_variant:  shotVariant,
+        product_ref:            product,
+        _lineTotal:             0,
+        item_notes:             si.item_notes || '',
+        item_notes_custom:      '',
+      }
+    })
     form.items.forEach(recalcItem)
   } finally {
     loadingDraft.value = false

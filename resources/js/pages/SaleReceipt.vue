@@ -11,10 +11,11 @@
         <span class="text-sm font-medium text-gray-700">{{ sale?.invoice_number }}</span>
       </div>
       <div class="flex gap-2">
-        <button @click="printReceipt" :disabled="loading || !sale"
+        <button @click="printReceipt" :disabled="loading || !sale || printing"
           class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
-          <PrinterIcon class="w-4 h-4" />
-          Print Receipt
+          <ArrowPathIcon v-if="printing" class="w-4 h-4 animate-spin" />
+          <PrinterIcon v-else class="w-4 h-4" />
+          {{ printing ? 'Printing…' : 'Print Receipt' }}
         </button>
       </div>
     </div>
@@ -217,7 +218,8 @@ const sale           = ref(null)
 const loading        = ref(true)
 const appName        = import.meta.env.VITE_APP_NAME ?? 'Liquor Shop POS'
 const restaurant     = ref({ name: '', address: '', city: '', country: '' })
-const isElectron = ref(false)
+const isElectron  = ref(false)
+const printing    = ref(false)
 
 const receiptCompanyName = computed(() => (restaurant.value.name || appName))
 const receiptAddress = computed(() => {
@@ -252,8 +254,22 @@ function formatTime(d) {
 }
 
 
-function printReceipt(autoRedirect = false) {
-  window.print()
+async function printReceipt(autoRedirect = false) {
+  if (isElectron.value && window.electronAPI?.printReceipt) {
+    printing.value = true
+    try {
+      const result = await window.electronAPI.printReceipt('pos', {
+        pageSize: { width: 76000, height: 500000 },
+      })
+      if (!result?.success) throw new Error(result?.error || 'Print failed')
+    } catch (err) {
+      console.error('Electron print failed:', err.message)
+    } finally {
+      printing.value = false
+    }
+  } else {
+    window.print()
+  }
   if (autoRedirect) router.push('/sales/new2')
 }
 

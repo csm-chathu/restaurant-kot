@@ -14,7 +14,6 @@ class ProductController extends Controller
     {
         $user = request()->user();
         $products = Product::with(['category:id,name', 'supplier:id,name', 'taxSetting:id,name,rate'])
-            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where(function ($inner) use ($s) {
                 $inner->where('name', 'like', "%$s%")
                     ->orWhere('sku', 'like', "%$s%")
@@ -73,7 +72,6 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        $this->authorizeBranch($product->branch_id);
         return response()->json($product->load(['category', 'supplier']));
     }
 
@@ -117,14 +115,12 @@ class ProductController extends Controller
             $data['image_public_id'] = $uploaded['public_id'];
         }
 
-        $this->authorizeBranch($product->branch_id);
         $product->update($data);
         return response()->json($product->fresh(['category', 'supplier']));
     }
 
     public function destroy(Product $product)
     {
-        $this->authorizeBranch($product->branch_id);
         $currentImage = (string) $product->getRawOriginal('image');
         CloudinaryService::destroyImage($product->image_public_id);
         if ($currentImage && !str_starts_with($currentImage, 'http://') && !str_starts_with($currentImage, 'https://')) {

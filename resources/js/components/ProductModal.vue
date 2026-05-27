@@ -148,7 +148,9 @@ const isLiquor = computed(() => {
 })
 
 const CATEGORY_TYPE_MAP = {
-  'liquor': 'Liquor', 'beer': 'Beer', 'soft drinks': 'Soft Drinks',
+  'liquor': 'Liquor', 'hard liquor': 'Liquor', 'foreign liquor': 'Liquor',
+  'hard-liquor': 'Liquor', 'foreign-liquor': 'Liquor',
+  'beer': 'Beer', 'soft drinks': 'Soft Drinks',
   'soft-drinks': 'Soft Drinks', 'food': 'Food', 'snacks': 'Food', 'accessories': 'Accessories',
 }
 

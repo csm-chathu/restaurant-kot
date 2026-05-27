@@ -30,6 +30,8 @@ use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/health', fn() => response()->json(['status' => 'ok']));
+
 // Tenant management — protected by X-Tenant-Key header (see TENANT_MASTER_KEY in .env)
 Route::post('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'create']);
 

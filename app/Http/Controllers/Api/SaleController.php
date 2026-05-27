@@ -81,9 +81,6 @@ class SaleController extends Controller
             $itemData = [];
             foreach ($data['items'] as $item) {
                 $product = Product::with('category')->findOrFail($item['product_id']);
-                if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
-                    throw new \Exception("Product not available for your branch: {$product->name}");
-                }
                 $isOpenBottleSell = !empty($item['open_bottle_id']);
                 if (!$isOpenBottleSell && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");
@@ -476,9 +473,6 @@ class SaleController extends Controller
             $itemData = [];
             foreach ($data['items'] as $item) {
                 $product = Product::with('category')->findOrFail($item['product_id']);
-                if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
-                    throw new \Exception("Product not available for your branch: {$product->name}");
-                }
                 $isOpenBottleSell = !empty($item['open_bottle_id']);
                 if ($isCompleting && !$isOpenBottleSell && $product->isStockTracked() && $product->stock_quantity < $item['quantity']) {
                     throw new \Exception("Insufficient stock for: {$product->name}");

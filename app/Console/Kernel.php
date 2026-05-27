@@ -12,7 +12,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Keep app warm on shared hosting — self-ping every 5 minutes
+        $schedule->call(function () {
+            $url = config('app.url') . '/api/health';
+            @file_get_contents($url);
+        })->everyFiveMinutes()->name('keep-alive')->withoutOverlapping();
     }
 
     /**

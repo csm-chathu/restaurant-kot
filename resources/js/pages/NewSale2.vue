@@ -44,11 +44,38 @@
       </div>
     </div>
 
-    <!-- Main 2-panel layout -->
+    <!-- Main 3-column layout: category sidebar + product grid + bill -->
     <div class="flex flex-1 overflow-hidden">
 
-      <!-- ── LEFT: Product browser ── -->
-      <div class="flex flex-col w-[58%] xl:w-[62%] overflow-hidden bg-white border-r border-gray-200">
+      <!-- ── Category sidebar (always visible) ── -->
+      <div class="flex flex-col w-[4.5rem] bg-white border-r border-gray-200 overflow-y-auto shrink-0">
+        <!-- Collapse/expand toggle -->
+        <button
+          @click="showProductPanel = !showProductPanel"
+          type="button"
+          class="flex items-center justify-center py-2.5 border-b border-gray-100 text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors shrink-0"
+          :title="showProductPanel ? 'Hide products' : 'Show products'"
+        >
+          <span class="text-base font-bold">{{ showProductPanel ? '◀' : '▶' }}</span>
+        </button>
+        <!-- Category buttons -->
+        <button
+          v-for="(cat, idx) in categoryTabs"
+          :key="cat"
+          @click="activeCategory = cat; showProductPanel = true"
+          class="flex flex-col items-center justify-center gap-0.5 px-1 py-2.5 text-center transition-all border-b border-gray-100 shrink-0 relative"
+          :class="activeCategory === cat
+            ? 'bg-amber-50 text-amber-700'
+            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'"
+        >
+          <span v-if="activeCategory === cat" class="absolute left-0 inset-y-0 w-0.5 bg-amber-500 rounded-r"></span>
+          <span class="text-xl leading-none">{{ getCategoryEmoji(cat) }}</span>
+          <span class="text-[8px] font-semibold leading-tight mt-0.5 w-full text-center line-clamp-2 px-0.5">{{ cat }}</span>
+        </button>
+      </div>
+
+      <!-- ── LEFT: Product browser (collapsible) ── -->
+      <div v-show="showProductPanel" class="flex flex-col flex-1 overflow-hidden bg-white border-r border-gray-200">
 
         <!-- Search + barcode -->
         <div class="flex gap-2 px-3 py-2.5 border-b border-gray-100 shrink-0">
@@ -77,22 +104,6 @@
           <button type="button" @click="openScanner" title="Camera scanner"
             class="w-11 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:border-amber-400 hover:text-amber-600 flex items-center justify-center shrink-0 transition-colors">
             <QrCodeIcon class="w-5 h-5" />
-          </button>
-        </div>
-
-        <!-- Category tabs -->
-        <div class="flex gap-2 px-3 py-2.5 overflow-x-auto border-b border-gray-100 shrink-0">
-          <button
-            v-for="(cat, idx) in categoryTabs"
-            :key="cat"
-            @click="activeCategory = cat"
-            class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
-            :class="activeCategory === cat
-              ? 'text-white shadow-md ' + getCategoryActiveBg(cat, idx)
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'"
-          >
-            <span class="text-base leading-none">{{ getCategoryEmoji(cat) }}</span>
-            <span>{{ cat }}</span>
           </button>
         </div>
 
@@ -163,7 +174,7 @@
       </div>
 
       <!-- ── RIGHT: Order panel ── -->
-      <div class="flex flex-col w-[42%] xl:w-[38%] overflow-hidden bg-gray-50">
+      <div class="flex flex-col w-[50%] shrink-0 overflow-hidden bg-gray-50">
 
         <!-- Table + Customer -->
         <div class="px-3 pt-3 pb-2 bg-white border-b border-gray-200 shrink-0 space-y-2">
@@ -213,7 +224,6 @@
             </button>
           </div>
 
-          <input v-model="form.notes" type="text" placeholder="📝 Order notes…" class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-amber-500 bg-gray-50" />
         </div>
 
         <!-- Bill items (scrollable) -->
@@ -346,26 +356,6 @@
                       </div>
                     </div>
 
-                    <!-- Kitchen notes -->
-                    <div class="flex flex-wrap items-center gap-1.5">
-                      <span class="text-xs text-gray-400 shrink-0">Note:</span>
-                      <button
-                        v-for="note in kitchenNotes"
-                        :key="note"
-                        @click="toggleKitchenNote(item, note)"
-                        type="button"
-                        class="px-2 py-0.5 rounded-full text-xs font-medium transition-colors border"
-                        :class="(item.item_notes || '').includes(note)
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-indigo-400 hover:text-indigo-600'"
-                      >{{ note }}</button>
-                      <input
-                        v-model="item.item_notes_custom"
-                        type="text"
-                        placeholder="custom…"
-                        class="flex-1 min-w-0 px-2 py-0.5 rounded-full border border-gray-200 text-xs focus:outline-none focus:border-indigo-400 text-gray-600 placeholder-gray-400"
-                      />
-                    </div>
                   </div>
                 </template>
               </div>
@@ -380,206 +370,207 @@
           </div>
         </div>
 
-        <!-- ── Totals + Payment (pinned bottom) ── -->
+        <!-- ── Totals + Payment (pinned) ── -->
         <div class="shrink-0 bg-white border-t-2 border-gray-200">
 
-          <!-- Order summary -->
-          <div class="px-4 py-3 bg-amber-50 border-t border-amber-100">
-            <button
-              @click="showPricingDetails = !showPricingDetails"
-              class="w-full flex items-center justify-between"
-            >
-              <div class="flex flex-col items-start">
-                <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">Total Amount</span>
-                <div class="flex items-center gap-2 mt-0.5">
-                  <span v-if="form.discount > 0" class="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full">−{{ lkr(form.discount) }} off</span>
-                  <span v-if="form.tax > 0" class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">+{{ form.tax_rate }}% tax</span>
+            <!-- Order summary / Total -->
+            <div class="px-4 py-3 bg-amber-50 border-t border-amber-100">
+              <button
+                @click="showPricingDetails = !showPricingDetails"
+                class="w-full flex items-center justify-between"
+              >
+                <div class="flex flex-col items-start">
+                  <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">Total Amount</span>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <span v-if="form.discount > 0" class="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full">−{{ lkr(form.discount) }} off</span>
+                    <span v-if="form.tax > 0" class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">+{{ form.tax_rate }}% tax</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-3xl font-black text-amber-600">LKR {{ lkr(total) }}</span>
+                  <span class="text-amber-400 text-sm">{{ showPricingDetails ? '▲' : '▼' }}</span>
+                </div>
+              </button>
+
+              <!-- Collapsible: subtotal / discount / tax -->
+              <div v-if="showPricingDetails" class="mt-3 pt-3 border-t border-amber-200 space-y-2">
+                <div class="flex justify-between text-sm text-gray-500">
+                  <span>Subtotal</span><span class="text-gray-800 font-semibold">LKR {{ lkr(subtotal) }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-500">Discount</span>
+                    <button
+                      type="button" @click="toggleDiscountType"
+                      class="px-2 py-1 text-xs font-bold rounded-lg border transition-colors shrink-0"
+                      :class="discountType === 'percent'
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'"
+                    >{{ discountType === 'percent' ? '%' : 'LKR' }}</button>
+                    <input
+                      v-model.number="discountInput"
+                      type="number" min="0" :max="discountType === 'percent' ? 100 : undefined"
+                      class="w-24 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm text-center focus:outline-none focus:border-amber-500"
+                      @input="applyDiscount" @wheel.prevent placeholder="0"
+                    />
+                  </div>
+                  <span v-if="form.discount > 0" class="text-sm text-red-500 font-semibold">
+                    −LKR {{ lkr(form.discount) }}
+                    <span v-if="discountType === 'percent'" class="text-gray-400 text-xs font-normal">({{ discountInput }}%)</span>
+                  </span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-500">Tax</span>
+                    <select v-model="selectedTaxId" class="px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm focus:outline-none focus:border-amber-500 w-36" @change="applyTax">
+                      <option value="">None</option>
+                      <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.rate }}%)</option>
+                    </select>
+                  </div>
+                  <span v-if="form.tax > 0" class="text-sm text-blue-500 font-semibold">+LKR {{ lkr(form.tax) }}</span>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="text-3xl font-black text-amber-600">LKR {{ lkr(total) }}</span>
-                <span class="text-amber-400 text-sm">{{ showPricingDetails ? '▲' : '▼' }}</span>
-              </div>
-            </button>
+            </div>
 
-            <!-- Collapsible: subtotal / discount / tax -->
-            <div v-if="showPricingDetails" class="mt-3 pt-3 border-t border-amber-200 space-y-2">
-              <div class="flex justify-between text-sm text-gray-500">
-                <span>Subtotal</span><span class="text-gray-800 font-semibold">LKR {{ lkr(subtotal) }}</span>
-              </div>
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-500">Discount</span>
+            <!-- Payment method buttons (compact) -->
+            <div class="px-3 pt-2 pb-1.5">
+              <div class="flex gap-1.5">
+                <template v-if="!splitPayment">
                   <button
-                    type="button" @click="toggleDiscountType"
-                    class="px-2 py-1 text-xs font-bold rounded-lg border transition-colors shrink-0"
-                    :class="discountType === 'percent'
-                      ? 'bg-red-500 text-white border-red-500'
-                      : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'"
-                  >{{ discountType === 'percent' ? '%' : 'LKR' }}</button>
-                  <input
-                    v-model.number="discountInput"
-                    type="number" min="0" :max="discountType === 'percent' ? 100 : undefined"
-                    class="w-24 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm text-center focus:outline-none focus:border-amber-500"
-                    @input="applyDiscount" @wheel.prevent placeholder="0"
-                  />
-                </div>
-                <span v-if="form.discount > 0" class="text-sm text-red-500 font-semibold">
-                  −LKR {{ lkr(form.discount) }}
-                  <span v-if="discountType === 'percent'" class="text-gray-400 text-xs font-normal">({{ discountInput }}%)</span>
-                </span>
-              </div>
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-500">Tax</span>
-                  <select v-model="selectedTaxId" class="px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm focus:outline-none focus:border-amber-500 w-36" @change="applyTax">
-                    <option value="">None</option>
-                    <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.rate }}%)</option>
-                  </select>
-                </div>
-                <span v-if="form.tax > 0" class="text-sm text-blue-500 font-semibold">+LKR {{ lkr(form.tax) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Payment method - large touch buttons -->
-          <div class="px-3 pt-3 pb-2">
-            <div class="flex gap-2">
-              <template v-if="!splitPayment">
+                    v-for="opt in paymentOptions"
+                    :key="opt.value"
+                    @click="form.payment_method = opt.value"
+                    class="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl font-bold text-sm transition-all border-2"
+                    :class="form.payment_method === opt.value
+                      ? 'bg-gray-900 text-white border-gray-900 shadow-lg'
+                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'"
+                  >
+                    <span>{{ opt.icon }}</span>
+                    <span>{{ opt.label }}</span>
+                  </button>
+                </template>
                 <button
-                  v-for="opt in paymentOptions"
-                  :key="opt.value"
-                  @click="form.payment_method = opt.value"
-                  class="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl font-bold text-sm transition-all border-2"
-                  :class="form.payment_method === opt.value
-                    ? 'bg-gray-900 text-white border-gray-900 shadow-lg'
-                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'"
+                  @click="toggleSplit"
+                  class="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl font-bold text-sm transition-all border-2"
+                  :class="splitPayment
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
+                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-purple-400'"
                 >
-                  <span class="text-xl">{{ opt.icon }}</span>
-                  <span>{{ opt.label }}</span>
+                  <span>✂️</span>
+                  <span>Split</span>
                 </button>
-              </template>
-              <button
-                @click="toggleSplit"
-                class="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl font-bold text-sm transition-all border-2"
-                :class="splitPayment
-                  ? 'bg-purple-600 text-white border-purple-600 shadow-lg'
-                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-purple-400'"
-              >
-                <span class="text-xl">✂️</span>
-                <span>Split</span>
-              </button>
-              <button
-                @click="form.payment_status = form.payment_status === 'pending' ? 'paid' : form.payment_status === 'paid' ? 'partial' : 'pending'"
-                class="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl font-bold text-sm transition-all border-2"
-                :class="form.payment_status === 'pending'
-                  ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
-                  : form.payment_status === 'partial'
-                    ? 'bg-orange-50 text-orange-700 border-orange-300'
-                    : 'bg-green-50 text-green-700 border-green-300'"
-              >
-                <span class="text-xl">{{ form.payment_status === 'pending' ? '⏳' : form.payment_status === 'partial' ? '⚡' : '✅' }}</span>
-                <span>{{ form.payment_status === 'pending' ? 'Pending' : form.payment_status === 'partial' ? 'Partial' : 'Paid' }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card reference -->
-          <div v-if="!splitPayment && form.payment_method === 'card'" class="px-3 pb-2">
-            <input v-model="form.card_reference" type="text" placeholder="Card receipt reference…"
-              class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-amber-500 text-gray-700" />
-          </div>
-
-          <!-- Split payment inputs -->
-          <div v-if="splitPayment" class="px-3 pb-2 space-y-2">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-xs font-bold text-gray-500 mb-1 block">💵 Cash</label>
-                <input v-model.number="splitCash" type="number" min="0" step="1"
-                  class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
-                  @input="onSplitCashInput" @wheel.prevent />
-              </div>
-              <div>
-                <label class="text-xs font-bold text-gray-500 mb-1 block">💳 Card</label>
-                <input v-model.number="splitCard" type="number" min="0" step="1"
-                  class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
-                  @input="onSplitCardInput" @wheel.prevent />
+                <button
+                  @click="form.payment_status = form.payment_status === 'pending' ? 'paid' : form.payment_status === 'paid' ? 'partial' : 'pending'"
+                  class="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl font-bold text-sm transition-all border-2"
+                  :class="form.payment_status === 'pending'
+                    ? 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                    : form.payment_status === 'partial'
+                      ? 'bg-orange-50 text-orange-700 border-orange-300'
+                      : 'bg-green-50 text-green-700 border-green-300'"
+                >
+                  <span>{{ form.payment_status === 'pending' ? '⏳' : form.payment_status === 'partial' ? '⚡' : '✅' }}</span>
+                  <span>{{ form.payment_status === 'pending' ? 'Pending' : form.payment_status === 'partial' ? 'Partial' : 'Paid' }}</span>
+                </button>
               </div>
             </div>
-            <div class="flex gap-1.5">
-              <button @click="splitCash = total; splitCard = 0"
-                class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">All Cash</button>
-              <button @click="splitCard = total; splitCash = 0"
-                class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">All Card</button>
-              <button @click="splitCash = Math.ceil(total / 2); splitCard = Math.floor(total / 2)"
-                class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">50/50</button>
-            </div>
-            <!-- Card reference when card portion > 0 -->
-            <div v-if="splitCard > 0">
-              <input v-model="splitCardReference" type="text" placeholder="Card receipt / last 4 digits…"
-                class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-amber-500 bg-white" />
-            </div>
-            <div v-if="totalPaid > 0" class="text-xs text-gray-500 text-center">
-              Received: <strong class="text-gray-800">LKR {{ lkr(totalPaid) }}</strong>
-            </div>
-          </div>
 
-          <!-- Amount + Exact + Change on one line (single payment) -->
-          <div v-if="!splitPayment" class="px-3 pb-2">
-            <div class="flex items-center gap-2">
-              <input
-                ref="amountInputRef"
-                v-model.number="form.amount_paid"
-                type="number"
-                min="0"
-                class="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
-                :placeholder="kbShortcutsEnabled ? 'Amount (F3)' : 'Amount received'"
-                @input="amountManuallySet = true; recalc()"
-                @wheel.prevent
-              />
-              <button
-                @click="amountManuallySet = false; form.amount_paid = total"
-                class="px-3 py-2.5 rounded-xl text-sm font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border-2 border-amber-300 transition-colors shrink-0"
-              >Exact</button>
-              <div v-if="changeDue > 0" class="shrink-0 flex flex-col items-center bg-green-50 border-2 border-green-200 rounded-xl px-3 py-1">
-                <span class="text-[10px] font-semibold text-green-600 uppercase tracking-wide leading-none">Change</span>
-                <span class="text-base font-black text-green-600 leading-tight">{{ lkr(changeDue) }}</span>
+            <!-- Card reference -->
+            <div v-if="!splitPayment && form.payment_method === 'card'" class="px-3 pb-2">
+              <input v-model="form.card_reference" type="text" placeholder="Card receipt reference…"
+                class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-amber-500 text-gray-700" />
+            </div>
+
+            <!-- Split payment inputs -->
+            <div v-if="splitPayment" class="px-3 pb-2 space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 mb-1 block">💵 Cash</label>
+                  <input v-model.number="splitCash" type="number" min="0" step="1"
+                    class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
+                    @input="onSplitCashInput" @wheel.prevent />
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 mb-1 block">💳 Card</label>
+                  <input v-model.number="splitCard" type="number" min="0" step="1"
+                    class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
+                    @input="onSplitCardInput" @wheel.prevent />
+                </div>
               </div>
-              <div v-else-if="balanceDue > 0.009" class="shrink-0 flex flex-col items-center bg-yellow-50 border-2 border-yellow-200 rounded-xl px-3 py-1">
-                <span class="text-[10px] font-semibold text-yellow-600 uppercase tracking-wide leading-none">Due</span>
-                <span class="text-base font-black text-yellow-600 leading-tight">{{ lkr(balanceDue) }}</span>
+              <div class="flex gap-1.5">
+                <button @click="splitCash = total; splitCard = 0"
+                  class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">All Cash</button>
+                <button @click="splitCard = total; splitCash = 0"
+                  class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">All Card</button>
+                <button @click="splitCash = Math.ceil(total / 2); splitCard = Math.floor(total / 2)"
+                  class="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 border border-gray-200 transition-colors">50/50</button>
+              </div>
+              <!-- Card reference when card portion > 0 -->
+              <div v-if="splitCard > 0">
+                <input v-model="splitCardReference" type="text" placeholder="Card receipt / last 4 digits…"
+                  class="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-amber-500 bg-white" />
+              </div>
+              <div v-if="totalPaid > 0" class="text-xs text-gray-500 text-center">
+                Received: <strong class="text-gray-800">LKR {{ lkr(totalPaid) }}</strong>
               </div>
             </div>
-          </div>
 
-          <!-- Error -->
-          <p v-if="error" class="mx-3 mb-2 text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-xl flex items-center gap-2">
-            <ExclamationTriangleIcon class="w-4 h-4 shrink-0" /> {{ error }}
-          </p>
+            <!-- Amount + Exact + Change on one line (single payment) -->
+            <div v-if="!splitPayment" class="px-3 pb-2">
+              <div class="flex items-center gap-2">
+                <input
+                  ref="amountInputRef"
+                  v-model.number="form.amount_paid"
+                  type="number"
+                  min="0"
+                  class="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
+                  :placeholder="kbShortcutsEnabled ? 'Amount (F3)' : 'Amount received'"
+                  @input="amountManuallySet = true; recalc()"
+                  @wheel.prevent
+                />
+                <button
+                  @click="amountManuallySet = false; form.amount_paid = total"
+                  class="px-3 py-2.5 rounded-xl text-sm font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border-2 border-amber-300 transition-colors shrink-0"
+                >Exact</button>
+                <div v-if="changeDue > 0" class="shrink-0 flex flex-col items-center bg-green-50 border-2 border-green-200 rounded-xl px-3 py-1">
+                  <span class="text-[10px] font-semibold text-green-600 uppercase tracking-wide leading-none">Change</span>
+                  <span class="text-base font-black text-green-600 leading-tight">{{ lkr(changeDue) }}</span>
+                </div>
+                <div v-else-if="balanceDue > 0.009" class="shrink-0 flex flex-col items-center bg-yellow-50 border-2 border-yellow-200 rounded-xl px-3 py-1">
+                  <span class="text-[10px] font-semibold text-yellow-600 uppercase tracking-wide leading-none">Due</span>
+                  <span class="text-base font-black text-yellow-600 leading-tight">{{ lkr(balanceDue) }}</span>
+                </div>
+              </div>
+            </div>
 
-          <!-- Action buttons -->
-          <div class="flex gap-2 px-3 pb-3 pt-1">
-            <button
-              @click="submit('draft')"
-              :disabled="saving || !form.items.filter(i => i.product_id).length"
-              class="flex items-center justify-center gap-2 px-4 py-3.5 bg-gray-600 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-colors shrink-0"
-            >
-              <ArrowPathIcon v-if="saving" class="w-4 h-4 animate-spin" />
-              <span v-else>📋</span>
-              Draft
-              <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F9</span>
-            </button>
-            <button
-              @click="submit('completed')"
-              :disabled="saving || !form.items.filter(i => i.product_id).length"
-              class="flex-1 flex items-center justify-center gap-2 py-3.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black text-base shadow-lg shadow-green-500/30 transition-all active:scale-95"
-            >
-              <ArrowPathIcon v-if="saving" class="w-5 h-5 animate-spin" />
-              <span v-else class="text-xl">✓</span>
-              {{ saving ? 'Processing…' : 'Complete Sale' }}
-              <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F10</span>
-            </button>
-          </div>
+            <!-- Error -->
+            <p v-if="error" class="mx-3 mb-2 text-sm text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-xl flex items-center gap-2">
+              <ExclamationTriangleIcon class="w-4 h-4 shrink-0" /> {{ error }}
+            </p>
+
+        </div>
+
+        <!-- ── Action buttons (always pinned at bottom) ── -->
+        <div class="shrink-0 flex gap-2 px-3 pb-3 pt-2 bg-white border-t border-gray-200">
+          <button
+            @click="submit('draft')"
+            :disabled="saving || !form.items.filter(i => i.product_id).length"
+            class="flex items-center justify-center gap-2 px-4 py-3.5 bg-gray-600 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-colors shrink-0"
+          >
+            <ArrowPathIcon v-if="saving" class="w-4 h-4 animate-spin" />
+            <span v-else>📋</span>
+            Draft
+            <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F9</span>
+          </button>
+          <button
+            @click="submit('completed')"
+            :disabled="saving || !form.items.filter(i => i.product_id).length"
+            class="flex-1 flex items-center justify-center gap-2 py-3.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black text-base shadow-lg shadow-green-500/30 transition-all active:scale-95"
+          >
+            <ArrowPathIcon v-if="saving" class="w-5 h-5 animate-spin" />
+            <span v-else class="text-xl">✓</span>
+            {{ saving ? 'Processing…' : 'Complete Sale' }}
+            <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F10</span>
+          </button>
         </div>
       </div>
     </div>
@@ -808,6 +799,7 @@ const newCustomerError    = ref('')
 const newCustomer         = reactive({ name: '', phone: '', email: '' })
 const showPricingDetails  = ref(false)
 const showTablePicker     = ref(false)
+const showProductPanel    = ref(true)
 
 const barcodeInput = ref('')
 const barcodeError = ref('')

@@ -1156,13 +1156,17 @@ async function loadDraft(draft) {
     form.items = (data.items || []).map(si => {
       const product      = si.product
       const savedPrice   = Number(si.unit_price || 0)
-      const variants     = Array.isArray(product?.shot_variants) ? product.shot_variants : []
-      const shotVariant  = variants.find(v => Number(v.price) === savedPrice) ?? null
+      let   variants     = product?.shot_variants
+      if (typeof variants === 'string') { try { variants = JSON.parse(variants) } catch { variants = [] } }
+      if (!Array.isArray(variants)) variants = []
+      // Match saved unit_price against variant prices (within 0.01 tolerance for float safety)
+      const shotVariant  = variants.find(v => Math.abs(Number(v.price) - savedPrice) < 0.01) ?? null
       return {
         product_id:             si.product_id,
         product_search:         product?.name || '',
         quantity:               Number(si.quantity || 0),
-        unit_price:             shotVariant ? savedPrice : Number(product?.selling_price ?? savedPrice),
+        // unit_price is always the bottle price; getEffectiveUnitPrice uses selected_shot_variant.price
+        unit_price:             Number(product?.selling_price ?? savedPrice),
         discount:               Number(si.discount || 0),
         serving_ml:             shotVariant ? 0 : Number(si.serving_ml || 0),
         empty_bottle_returned:  false,

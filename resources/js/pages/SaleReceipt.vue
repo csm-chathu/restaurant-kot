@@ -222,12 +222,13 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 import QRCode from 'qrcode'
 
 const route          = useRoute()
+const router         = useRouter()
 const sale           = ref(null)
 const loading        = ref(true)
 const appName        = import.meta.env.VITE_APP_NAME ?? 'Liquor Shop POS'
@@ -271,7 +272,7 @@ function formatTime(d) {
 }
 
 
-async function printReceipt() {
+async function printReceipt(autoRedirect = false) {
   if (window.electronAPI?.printReceipt) {
     directPrintError.value = ''
     directPrinting.value = true
@@ -280,6 +281,7 @@ async function printReceipt() {
         pageSize: { width: 76000, height: 500000 },
       })
       if (!result?.success) throw new Error(result?.error || 'Print failed')
+      if (autoRedirect) router.push('/sales/new2')
     } catch (err) {
       directPrintError.value = err.message || 'Print failed.'
     } finally {
@@ -287,6 +289,7 @@ async function printReceipt() {
     }
   } else {
     window.print()
+    if (autoRedirect) router.push('/sales/new2')
   }
 }
 
@@ -427,7 +430,7 @@ onMounted(async () => {
     await nextTick()
 
     if (route.query.print === '1') {
-      setTimeout(printReceipt, 400)
+      setTimeout(() => printReceipt(true), 400)
     }
   } catch {
     sale.value = null

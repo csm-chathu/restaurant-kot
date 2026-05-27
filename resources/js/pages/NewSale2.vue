@@ -8,10 +8,16 @@
       </router-link>
       <span class="text-gray-300 shrink-0">/</span>
       <h2 class="text-sm font-semibold text-gray-800 shrink-0">New Bill</h2>
-      <button v-if="kbShortcutsEnabled" @click="showKbHelp = !showKbHelp" type="button"
-        class="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
-        <QuestionMarkCircleIcon class="w-4 h-4" /><span class="hidden sm:inline">Shortcuts</span>
-      </button>
+      <div class="ml-auto shrink-0 flex items-center gap-1.5">
+        <router-link v-if="lastReceiptId" :to="`/sales/${lastReceiptId}`"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
+          <PrinterIcon class="w-3.5 h-3.5" /> Last Receipt
+        </router-link>
+        <button v-if="kbShortcutsEnabled" @click="showKbHelp = !showKbHelp" type="button"
+          class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+          <QuestionMarkCircleIcon class="w-4 h-4" /><span class="hidden sm:inline">Shortcuts</span>
+        </button>
+      </div>
 
       <!-- Draft tabs -->
       <div v-if="draftBills.length" class="flex items-center gap-1.5 ml-2 flex-wrap">
@@ -288,7 +294,7 @@
                     <div class="flex flex-wrap gap-x-4 gap-y-1.5 items-center">
                       <div class="flex items-center gap-1.5">
                         <span class="text-xs text-gray-400">Disc:</span>
-                        <input v-model.number="item.discount" type="number" min="0" class="w-16 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" placeholder="0" />
+                        <input v-model.number="item.discount" type="number" min="0" class="w-16 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
                       </div>
 
                       <!-- Opened bottle badge -->
@@ -301,7 +307,7 @@
                         <template v-if="item.open_bottle_id">
                           <div class="flex items-center gap-1">
                             <span class="text-xs text-gray-400">Price:</span>
-                            <input v-model.number="item.unit_price" type="number" min="0" class="w-20 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" />
+                            <input v-model.number="item.unit_price" type="number" min="0" class="w-20 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent />
                           </div>
                           <button @click="clearOpenBottle(item)" type="button" class="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
                         </template>
@@ -313,7 +319,7 @@
                               class="px-2 py-1 text-xs font-semibold rounded-lg transition-colors"
                               :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
                             >{{ size }}</button>
-                            <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" placeholder="0" />
+                            <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
                           </div>
                           <button @click="showOpenBottlePicker(item)" type="button"
                             class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
@@ -405,7 +411,7 @@
                     v-model.number="discountInput"
                     type="number" min="0" :max="discountType === 'percent' ? 100 : undefined"
                     class="w-24 px-2 py-1 rounded-lg bg-white border border-gray-200 text-gray-800 text-sm text-center focus:outline-none focus:border-amber-500"
-                    @input="applyDiscount" placeholder="0"
+                    @input="applyDiscount" @wheel.prevent placeholder="0"
                   />
                 </div>
                 <span v-if="form.discount > 0" class="text-sm text-red-500 font-semibold">
@@ -481,13 +487,13 @@
                 <label class="text-xs font-bold text-gray-500 mb-1 block">💵 Cash</label>
                 <input v-model.number="splitCash" type="number" min="0" step="1"
                   class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
-                  @input="onSplitCashInput" />
+                  @input="onSplitCashInput" @wheel.prevent />
               </div>
               <div>
                 <label class="text-xs font-bold text-gray-500 mb-1 block">💳 Card</label>
                 <input v-model.number="splitCard" type="number" min="0" step="1"
                   class="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
-                  @input="onSplitCardInput" />
+                  @input="onSplitCardInput" @wheel.prevent />
               </div>
             </div>
             <div class="flex gap-1.5">
@@ -519,6 +525,7 @@
                 class="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 border-gray-200 text-lg font-bold text-center text-gray-900 focus:outline-none focus:border-amber-500"
                 :placeholder="kbShortcutsEnabled ? 'Amount (F3)' : 'Amount received'"
                 @input="amountManuallySet = true; recalc()"
+                @wheel.prevent
               />
               <button
                 @click="amountManuallySet = false; form.amount_paid = total"
@@ -741,7 +748,7 @@ import {
   ArrowLeftIcon, PlusIcon, XMarkIcon,
   ShoppingCartIcon, CheckCircleIcon, ArrowPathIcon,
   ExclamationTriangleIcon, QrCodeIcon, MagnifyingGlassIcon, ShoppingBagIcon,
-  QuestionMarkCircleIcon, TableCellsIcon, ChevronDownIcon,
+  QuestionMarkCircleIcon, TableCellsIcon, ChevronDownIcon, PrinterIcon,
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -781,6 +788,7 @@ const barcodeInputRef  = ref(null)
 const amountInputRef   = ref(null)
 const showKbHelp       = ref(false)
 const kbShortcutsEnabled = ref(localStorage.getItem('pos_keyboard_shortcuts') !== 'false')
+const lastReceiptId = ref(localStorage.getItem('pos_last_receipt_id') || '')
 
 const saving              = ref(false)
 const error               = ref('')
@@ -1294,6 +1302,8 @@ async function submit(billStatus) {
     }
 
     if (billStatus === 'completed') {
+      lastReceiptId.value = String(saleId)
+      localStorage.setItem('pos_last_receipt_id', String(saleId))
       router.push(`/sales/${saleId}?print=1`)
     } else {
       router.push('/sales')

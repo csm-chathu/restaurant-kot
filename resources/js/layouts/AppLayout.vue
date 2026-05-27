@@ -212,7 +212,7 @@ const currentDate = computed(() => new Date().toLocaleDateString('en-US', { week
 
 async function doLogout() {
   await auth.logout()
-  router.push('/login')
+  window.location.href = '/login'
 }
 
 async function loadRestaurant() {

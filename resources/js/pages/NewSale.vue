@@ -270,7 +270,7 @@
                   <!-- Item discount -->
                   <div class="flex items-center gap-1">
                     <span class="text-xs text-gray-400">Disc:</span>
-                    <input v-model.number="item.discount" type="number" min="0" class="w-16 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
+                    <input v-model.number="item.discount" type="number" min="0" class="w-16 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
                   </div>
 
                   <!-- Opened bottle badge OR sell opened bottle button -->
@@ -282,7 +282,7 @@
                       </span>
                       <div class="flex items-center gap-1">
                         <span class="text-xs text-gray-400">Price:</span>
-                        <input v-model.number="item.unit_price" type="number" min="0" class="w-20 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" />
+                        <input v-model.number="item.unit_price" type="number" min="0" class="w-20 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" @wheel.prevent />
                       </div>
                       <button @click="clearOpenBottle(item)" type="button" class="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
                     </template>
@@ -295,7 +295,7 @@
                           class="px-1.5 py-0.5 text-xs font-semibold rounded transition-colors"
                           :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
                         >{{ size }}</button>
-                        <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" placeholder="0" />
+                        <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 form-input text-xs py-0.5 text-center" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
                       </div>
                       <!-- Sell opened bottle button -->
                       <button @click="showOpenBottlePicker(item)" type="button"
@@ -361,7 +361,7 @@
                     v-model.number="discountInput"
                     type="number" min="0" :max="discountType === 'percent' ? 100 : undefined"
                     class="w-20 form-input text-xs py-0.5 text-center"
-                    @input="applyDiscount" placeholder="0"
+                    @input="applyDiscount" @wheel.prevent placeholder="0"
                   />
                 </div>
                 <span v-if="form.discount > 0" class="text-xs text-red-500 font-medium">
@@ -426,13 +426,13 @@
                 <label class="text-xs font-semibold text-gray-500 mb-0.5 block">Cash</label>
                 <input v-model.number="splitCash" type="number" min="0" step="1"
                   class="form-input text-base font-bold py-1.5 text-center text-gray-900 w-full"
-                  @input="onSplitCashInput" />
+                  @input="onSplitCashInput" @wheel.prevent />
               </div>
               <div>
                 <label class="text-xs font-semibold text-gray-500 mb-0.5 block">Card</label>
                 <input v-model.number="splitCard" type="number" min="0" step="1"
                   class="form-input text-base font-bold py-1.5 text-center text-gray-900 w-full"
-                  @input="onSplitCardInput" />
+                  @input="onSplitCardInput" @wheel.prevent />
               </div>
             </div>
             <div class="flex gap-1">
@@ -469,6 +469,7 @@
                 class="form-input text-base font-bold py-1.5 text-center text-gray-900 flex-1"
                 :placeholder="kbShortcutsEnabled ? 'Amount received (F3)' : 'Amount received'"
                 @input="recalc"
+                @wheel.prevent
               />
               <button
                 @click="form.amount_paid = total"

@@ -209,7 +209,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeftIcon, PrinterIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 const route          = useRoute()
 const router         = useRouter()
@@ -304,15 +304,6 @@ onMounted(async () => {
 
 /* ── 76mm Thermal print ──────────────────────────────────── */
 @media print {
-  /* Hide app shell/chrome */
-  .no-print,
-  aside,
-  nav,
-  header,
-  footer {
-    display: none !important;
-  }
-
   html, body {
     margin: 0 !important;
     padding: 0 !important;
@@ -324,16 +315,23 @@ onMounted(async () => {
   /* Reset application layout wrappers to avoid clipping and extra whitespace */
   #app,
   #app > div,
+  #app > div > div,
+  #app > div > div > div,
   #app main {
+    display: block !important;
     width: auto !important;
     min-width: 0 !important;
     height: auto !important;
     min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
     background: #fff !important;
+    flex: none !important;
   }
+
+  aside, header, .no-print { display: none !important; }
 
   #receipt-wrapper {
     position: static !important;

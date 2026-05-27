@@ -53,8 +53,8 @@
             <label class="form-label">Selling Variants</label>
             <input v-model="form.selling_variants" class="form-input" placeholder="e.g. 30ml, 50ml, 750ml" />
           </div>
-          <!-- Shot variants — only for liquor categories -->
-          <div v-if="isLiquor" class="col-span-2">
+          <!-- Shot variants — for liquor categories or products that already have variants -->
+          <div v-if="isLiquor || form.shot_variants.length" class="col-span-2">
             <div class="flex items-center justify-between mb-2">
               <label class="form-label mb-0">Shot Variants</label>
               <button type="button" @click="addShotVariant"

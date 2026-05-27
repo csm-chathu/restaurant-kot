@@ -40,6 +40,7 @@ class ProductController extends Controller
             'unit_type'               => 'nullable|string|max:50',
             'base_unit'               => 'nullable|string|max:50',
             'selling_variants'        => 'nullable|string',
+            'shot_variants'           => 'nullable|string',
             'purchase_price'          => 'required|numeric|min:0',
             'selling_price'           => 'required|numeric|min:0',
             'stock_quantity'          => 'required|integer|min:0',
@@ -55,6 +56,7 @@ class ProductController extends Controller
         $data['sku'] = 'NEW-' . uniqid('', true); // temp unique; replaced below with numeric ID
         $data['branch_id'] = $request->user()->branch_id;
         $data['selling_variants'] = isset($data['selling_variants']) ? trim($data['selling_variants']) : null;
+        $data['shot_variants'] = json_decode($request->input('shot_variants', '[]'), true) ?? [];
         $data['bottle_deposit_required'] = $request->boolean('bottle_deposit_required');
         $data['is_active'] = $request->boolean('is_active', true);
 
@@ -86,6 +88,7 @@ class ProductController extends Controller
             'unit_type'               => 'nullable|string|max:50',
             'base_unit'               => 'nullable|string|max:50',
             'selling_variants'        => 'nullable|string',
+            'shot_variants'           => 'nullable|string',
             'purchase_price'          => 'required|numeric|min:0',
             'selling_price'           => 'required|numeric|min:0',
             'stock_quantity'          => 'required|integer|min:0',
@@ -99,6 +102,7 @@ class ProductController extends Controller
         ]);
 
         $data['selling_variants'] = isset($data['selling_variants']) ? trim($data['selling_variants']) : null;
+        $data['shot_variants'] = json_decode($request->input('shot_variants', '[]'), true) ?? [];
         $data['bottle_deposit_required'] = $request->boolean('bottle_deposit_required');
         $data['is_active'] = $request->boolean('is_active', true);
 

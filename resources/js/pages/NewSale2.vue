@@ -146,6 +146,12 @@
               <div class="p-2.5 flex flex-col gap-1">
                 <p class="text-sm font-semibold text-gray-800 leading-tight line-clamp-2">{{ product.name }}</p>
                 <p class="text-base font-bold text-amber-600">LKR {{ lkr(product.selling_price) }}</p>
+                <div v-if="product.shot_variants?.length" class="flex flex-wrap gap-1 mt-0.5">
+                  <span v-for="v in product.shot_variants" :key="v.name"
+                    class="text-xs font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-1.5 py-0.5">
+                    {{ v.name }} LKR {{ lkr(v.price) }}
+                  </span>
+                </div>
                 <p v-if="isStockTracked(product)" class="text-xs"
                   :class="product.stock_quantity <= product.min_stock_level ? 'text-red-500' : 'text-gray-400'">
                   {{ product.stock_quantity <= product.min_stock_level ? '⚠ ' : '' }}{{ product.stock_quantity }} in stock
@@ -259,7 +265,8 @@
                       </p>
                       <p class="text-xs text-amber-600 font-semibold mt-0.5">
                         LKR {{ lkr(getEffectiveUnitPrice(item)) }}
-                        <span v-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400 font-normal"> · {{ item.serving_ml }}ml</span>
+                        <span v-if="item.selected_shot_variant" class="text-purple-500 font-normal"> · {{ item.selected_shot_variant.name }}</span>
+                        <span v-else-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400 font-normal"> · {{ item.serving_ml }}ml</span>
                       </p>
                     </div>
 
@@ -302,7 +309,7 @@
                         🍾 Opened · {{ item.open_bottle_ref?.remaining_volume_ml?.toFixed(0) }}ml
                       </span>
 
-                      <!-- Liquor options -->
+                      <!-- Shot variants + open bottle -->
                       <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type) || ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name)">
                         <template v-if="item.open_bottle_id">
                           <div class="flex items-center gap-1">
@@ -312,15 +319,18 @@
                           <button @click="clearOpenBottle(item)" type="button" class="text-xs text-red-400 hover:text-red-600">✕ Clear</button>
                         </template>
                         <template v-else>
-                          <div class="flex items-center gap-1">
-                            <span class="text-xs text-gray-400">ml:</span>
-                            <button v-for="size in ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name) ? [25, 50] : [30, 50, 60, 75]" :key="size"
-                              @click="item.serving_ml = size; recalcItem(item)" type="button"
-                              class="px-2 py-1 text-xs font-semibold rounded-lg transition-colors"
-                              :class="item.serving_ml === size ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'"
-                            >{{ size }}</button>
-                            <input v-model.number="item.serving_ml" type="number" min="0" class="w-14 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
-                          </div>
+                          <button v-for="v in item.product_ref.shot_variants" :key="v.name"
+                            @click="selectShotVariant(item, v)"
+                            type="button"
+                            class="px-2 py-1 rounded-full text-xs font-semibold border transition-colors"
+                            :class="item.selected_shot_variant?.name === v.name
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100'"
+                          >{{ v.name }} · LKR {{ lkr(v.price) }}</button>
+                          <button v-if="item.selected_shot_variant"
+                            @click="item.selected_shot_variant = null; recalcItem(item)"
+                            type="button"
+                            class="text-xs text-gray-400 hover:text-gray-600">✕ Bottle</button>
                           <button @click="showOpenBottlePicker(item)" type="button"
                             class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
                           >Sell opened bottle</button>
@@ -1015,7 +1025,7 @@ function newItem() {
     empty_bottle_returned: false, bottle_deposit_amount: 100, serving_ml: 0,
     open_bottle_id: null, open_bottle_ref: null,
     product_ref: null, _lineTotal: 0,
-    item_notes: '', item_notes_custom: '',
+    item_notes: '', item_notes_custom: '', selected_shot_variant: null,
   }
 }
 
@@ -1033,6 +1043,7 @@ function recalcItem(item) {
 
 function getEffectiveUnitPrice(item) {
   if (item.open_bottle_id) return Number(item.unit_price || 0)
+  if (item.selected_shot_variant) return Number(item.selected_shot_variant.price || 0)
   const baseUnitPrice = Number(item.unit_price || 0)
   const servingMl = Number(item.serving_ml || 0)
   const isLiquor = String(item.product_ref?.product_type || '').toLowerCase() === 'liquor'
@@ -1091,7 +1102,8 @@ function fillProduct(item) {
   item.product_ref    = p
   item.product_search = p.name || ''
   item.unit_price     = p.selling_price
-  item.serving_ml     = 0
+  item.serving_ml           = 0
+  item.selected_shot_variant = null
   item.empty_bottle_returned = false
   item.bottle_deposit_amount = 100
   recalcItem(item)
@@ -1208,6 +1220,12 @@ function processBarcode(code) {
   addProductFromGrid(product)
   barcodeError.value = ''
   nextTick(() => barcodeInputRef.value?.focus())
+}
+
+function selectShotVariant(item, variant) {
+  item.selected_shot_variant = item.selected_shot_variant?.name === variant.name ? null : variant
+  item.serving_ml = 0
+  recalcItem(item)
 }
 
 function onSearchInput() {

@@ -53,6 +53,25 @@
             <label class="form-label">Selling Variants</label>
             <input v-model="form.selling_variants" class="form-input" placeholder="e.g. 30ml, 50ml, 750ml" />
           </div>
+          <!-- Shot variants — only for liquor categories -->
+          <div v-if="isLiquor" class="col-span-2">
+            <div class="flex items-center justify-between mb-2">
+              <label class="form-label mb-0">Shot Variants</label>
+              <button type="button" @click="addShotVariant"
+                class="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 font-semibold transition-colors">
+                + Add Variant
+              </button>
+            </div>
+            <div v-if="form.shot_variants.length" class="space-y-2">
+              <div v-for="(v, idx) in form.shot_variants" :key="idx" class="flex items-center gap-2">
+                <input v-model="v.name" class="form-input flex-1" placeholder="e.g. 30ml, 60ml, Single" />
+                <input v-model.number="v.price" type="number" step="0.01" min="0" class="form-input w-32" placeholder="LKR price" />
+                <button type="button" @click="form.shot_variants.splice(idx, 1)"
+                  class="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 rounded-lg transition-colors shrink-0">✕</button>
+              </div>
+            </div>
+            <p v-else class="text-xs text-gray-400 italic">No shot variants — add one above.</p>
+          </div>
           <div>
             <label class="form-label">Tax Setting</label>
             <select v-model="form.tax_setting_id" class="form-input">
@@ -123,6 +142,11 @@ const isFood = computed(() => {
   return ['food', 'snacks'].includes((cat?.name ?? '').toLowerCase())
 })
 
+const isLiquor = computed(() => {
+  const cat = (props.categories ?? []).find(c => c.id === form.category_id)
+  return (cat?.name ?? '').toLowerCase().includes('liquor')
+})
+
 const CATEGORY_TYPE_MAP = {
   'liquor': 'Liquor', 'beer': 'Beer', 'soft drinks': 'Soft Drinks',
   'soft-drinks': 'Soft Drinks', 'food': 'Food', 'snacks': 'Food', 'accessories': 'Accessories',
@@ -131,6 +155,7 @@ const CATEGORY_TYPE_MAP = {
 const form = reactive({
   name: '', description: '', category_id: '', supplier_id: '', tax_setting_id: '',
   product_type: 'Liquor', brand: '', unit_type: '', base_unit: '', selling_variants: '',
+  shot_variants: [],
   purchase_price: '', selling_price: '', stock_quantity: 0, min_stock_level: 5,
   bottle_deposit_required: false, is_active: true, barcode: '',
 })
@@ -157,6 +182,11 @@ onMounted(() => {
     form.selling_variants = Array.isArray(props.product.selling_variants)
       ? props.product.selling_variants.join(', ')
       : (props.product.selling_variants ?? '')
+    let sv = props.product.shot_variants
+    if (typeof sv === 'string') { try { sv = JSON.parse(sv) } catch { sv = [] } }
+    form.shot_variants = Array.isArray(sv)
+      ? sv.map(v => ({ name: v.name ?? '', price: v.price ?? '' }))
+      : []
   }
 })
 
@@ -170,10 +200,12 @@ async function submit() {
       ...form,
       product_type: derivedType,
       selling_variants: form.selling_variants ? form.selling_variants.split(',').map(v => v.trim()).filter(Boolean).join(', ') : '',
+      shot_variants: JSON.stringify(form.shot_variants.filter(v => v.name)),
     }
     const formData = new FormData()
     Object.entries(payload).forEach(([key, value]) => {
       if (value === null || value === undefined) return
+      if (key === 'image') return  // only send image when a new file is chosen
       if (key === 'is_active' || key === 'bottle_deposit_required') {
         formData.append(key, value ? '1' : '0')
         return
@@ -200,6 +232,10 @@ async function submit() {
   } finally {
     saving.value = false
   }
+}
+
+function addShotVariant() {
+  form.shot_variants.push({ name: '', price: '' })
 }
 
 function onImageChange(event) {

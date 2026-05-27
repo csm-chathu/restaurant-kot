@@ -12,7 +12,8 @@ class Product extends Model
 
     protected $fillable = [
         'branch_id', 'sku', 'barcode', 'name', 'description', 'category_id', 'product_type',
-        'brand', 'unit_type', 'base_unit', 'selling_variants', 'purchase_price', 'selling_price',
+        'brand', 'unit_type', 'base_unit', 'selling_variants', 'shot_variants',
+        'purchase_price', 'selling_price',
         'stock_quantity', 'min_stock_level', 'image', 'image_public_id', 'is_active', 'supplier_id',
         'bottle_deposit_required', 'tax_setting_id',
     ];
@@ -22,6 +23,7 @@ class Product extends Model
         'bottle_deposit_required' => 'boolean',
         'purchase_price'          => 'float',
         'selling_price'           => 'float',
+        'shot_variants'           => 'array',
     ];
 
     public function category()

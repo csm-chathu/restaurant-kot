@@ -11,23 +11,12 @@
         <span class="text-sm font-medium text-gray-700">{{ sale?.invoice_number }}</span>
       </div>
       <div class="flex gap-2">
-        <button v-if="!isElectron" @click="directPrint" :disabled="directPrinting || loading || !sale"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
-          <ArrowPathIcon v-if="directPrinting" class="w-4 h-4 animate-spin" />
-          <PrinterIcon v-else class="w-4 h-4" />
-          {{ directPrinting ? 'Printing...' : 'Direct Print' }}
-        </button>
-        <button @click="printReceipt" :disabled="directPrinting || loading || !sale"
+        <button @click="printReceipt" :disabled="loading || !sale"
           class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
-          <ArrowPathIcon v-if="isElectron && directPrinting" class="w-4 h-4 animate-spin" />
-          <PrinterIcon v-else class="w-4 h-4" />
-          {{ isElectron && directPrinting ? 'Printing...' : 'Print Receipt' }}
+          <PrinterIcon class="w-4 h-4" />
+          Print Receipt
         </button>
       </div>
-    </div>
-
-    <div v-if="directPrintError" class="no-print mb-4 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
-      {{ directPrintError }}
     </div>
 
     <!-- Loading -->
@@ -203,10 +192,6 @@
           <div style="font-weight:bold;">*** Thank You! Come Again ***</div>
           <div style="font-size:10px; color:#222;">{{ formatDate(sale.sold_at) }}</div>
           <div style="font-size:10px; font-weight:600; margin-top:3px; letter-spacing:0.5px;">www.lumac.lk</div>
-          <div v-if="whatsappQr" style="margin-top:6px; display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
-            <img :src="whatsappQr" alt="WhatsApp QR" class="receipt-qr" style="width:48px; height:48px; display:block;" />
-            <div style="font-size:9px; font-weight:bold; color:#222;">Scan to WhatsApp us</div>
-          </div>
         </div>
 
       </div>
@@ -224,8 +209,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
-import QRCode from 'qrcode'
+import { ArrowLeftIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 
 const route          = useRoute()
 const router         = useRouter()
@@ -233,11 +217,7 @@ const sale           = ref(null)
 const loading        = ref(true)
 const appName        = import.meta.env.VITE_APP_NAME ?? 'Liquor Shop POS'
 const restaurant     = ref({ name: '', address: '', city: '', country: '' })
-const preferredPrinter = import.meta.env.VITE_THERMAL_PRINTER ?? ''
-const directPrinting = ref(false)
-const directPrintError = ref('')
 const isElectron = ref(false)
-const whatsappQr = ref('')
 
 const receiptCompanyName = computed(() => (restaurant.value.name || appName))
 const receiptAddress = computed(() => {
@@ -272,152 +252,14 @@ function formatTime(d) {
 }
 
 
-async function printReceipt(autoRedirect = false) {
-  if (window.electronAPI?.printReceipt) {
-    directPrintError.value = ''
-    directPrinting.value = true
-    try {
-      const result = await window.electronAPI.printReceipt('pos', {
-        pageSize: { width: 76000, height: 500000 },
-      })
-      if (!result?.success) throw new Error(result?.error || 'Print failed')
-      if (autoRedirect) router.push('/sales/new2')
-    } catch (err) {
-      directPrintError.value = err.message || 'Print failed.'
-    } finally {
-      directPrinting.value = false
-    }
-  } else {
-    window.print()
-    if (autoRedirect) router.push('/sales/new2')
-  }
+function printReceipt(autoRedirect = false) {
+  window.print()
+  if (autoRedirect) router.push('/sales/new2')
 }
 
-function qzScriptLoaded() {
-  return typeof window !== 'undefined' && !!window.qz
-}
-
-function loadQzScript() {
-  return new Promise((resolve, reject) => {
-    if (qzScriptLoaded()) {
-      resolve()
-      return
-    }
-
-    const existing = document.querySelector('script[data-qz-tray="1"]')
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true })
-      existing.addEventListener('error', () => reject(new Error('Failed to load QZ Tray library.')), { once: true })
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js'
-    script.async = true
-    script.dataset.qzTray = '1'
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load QZ Tray library.'))
-    document.head.appendChild(script)
-  })
-}
-
-function buildDirectPrintHtml() {
-  const receipt = document.getElementById('receipt')
-  if (!receipt) return ''
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    html, body { margin: 0; padding: 0; background: #fff; }
-    .receipt-paper {
-      width: 75mm;
-      max-width: 75mm;
-      margin: 0;
-      padding: 4mm 4mm 4mm 3mm;
-      box-sizing: border-box;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 11pt;
-      line-height: 1.45;
-      font-weight: 500;
-      color: #000;
-      background: #fff;
-    }
-    .receipt-divider { border: none; border-top: 1px dashed #666; margin: 6px 0; }
-    .receipt-divider-solid { border: none; border-top: 1px solid #555; margin: 6px 0; }
-    .receipt-divider-double { border: none; border-top: 3px double #333; margin: 6px 0; }
-    canvas { max-width: 100%; }
-  </style>
-</head>
-<body>${receipt.outerHTML}</body>
-</html>`
-}
-
-async function ensureQzConnected() {
-  await loadQzScript()
-
-  const qz = window.qz
-  if (!qz) throw new Error('QZ Tray library is not available.')
-
-  qz.api.setPromiseType(Promise)
-  qz.security.setCertificatePromise(() => Promise.resolve(null))
-  qz.security.setSignaturePromise(() => Promise.resolve(''))
-
-  if (!qz.websocket.isActive()) {
-    await qz.websocket.connect({ retries: 2, delay: 0.5 })
-  }
-
-  return qz
-}
-
-async function resolvePrinter(qz) {
-  if (preferredPrinter) {
-    const exact = await qz.printers.find(preferredPrinter).catch(() => null)
-    if (exact) return exact
-  }
-
-  const fallback = await qz.printers.getDefault().catch(() => null)
-  if (fallback) return fallback
-
-  throw new Error('No printer found. Set a default printer in Windows or configure VITE_THERMAL_PRINTER.')
-}
-
-async function directPrint() {
-  if (!sale.value) return
-  directPrintError.value = ''
-  directPrinting.value = true
-
-  try {
-    const html = buildDirectPrintHtml()
-    if (!html) throw new Error('Receipt content is not ready yet.')
-
-    const qz = await ensureQzConnected()
-    const printer = await resolvePrinter(qz)
-
-    const config = qz.configs.create(printer, {
-      units: 'mm',
-      copies: 1,
-      scaleContent: true,
-      rasterize: true,
-      jobName: `Sale-${sale.value.invoice_number ?? sale.value.id}`,
-    })
-
-    await qz.print(config, [{ type: 'html', format: 'plain', data: html }])
-  } catch (err) {
-    const msg = err?.message || 'Direct print failed.'
-    directPrintError.value = `${msg} Install/open QZ Tray, trust this site, then try again.`
-  } finally {
-    directPrinting.value = false
-  }
-}
 
 onMounted(async () => {
   isElectron.value = typeof window.electronAPI?.printReceipt === 'function'
-
-  QRCode.toDataURL('https://wa.me/94764643050', { width: 144, margin: 1, color: { dark: '#000', light: '#fff' } })
-    .then(url => { whatsappQr.value = url })
-    .catch(() => {})
 
   try {
     const [saleRes, settingsRes] = await Promise.all([
@@ -535,12 +377,6 @@ onMounted(async () => {
     max-height: 60px !important;
   }
 
-  /* QR code print */
-  #receipt-wrapper img.receipt-qr {
-    display: block !important;
-    width: 48px !important;
-    height: 48px !important;
-  }
 
   @page {
     size: 76mm auto;

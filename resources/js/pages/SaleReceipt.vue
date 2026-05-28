@@ -222,7 +222,6 @@ const loading        = ref(true)
 const printing       = ref(false)
 const appName        = import.meta.env.VITE_APP_NAME ?? 'Liquor Shop POS'
 const restaurant     = ref({ name: '', address: '', city: '', country: '' })
-const isElectron = ref(false)
 
 const receiptCompanyName = computed(() => (restaurant.value.name || appName))
 const receiptAddress = computed(() => {
@@ -260,14 +259,10 @@ function formatTime(d) {
 async function printReceipt(autoRedirect = false) {
   printing.value = true
   try {
-    if (window.electronAPI?.printReceipt) {
-      await window.electronAPI.printReceipt('pos', { pageSize: { width: 76000, height: 500000 } })
-    } else {
-      window.print()
-    }
+    // Use window.print() only — electronAPI.printReceipt + kiosk-printing causes double print
+    window.print()
+    await new Promise(r => setTimeout(r, 600))
   } finally {
-    // Keep spinner visible briefly so the user sees feedback even if print is instant
-    await new Promise(r => setTimeout(r, 2000))
     printing.value = false
   }
   if (autoRedirect) router.push('/sales/new2')
@@ -275,8 +270,6 @@ async function printReceipt(autoRedirect = false) {
 
 
 onMounted(async () => {
-  isElectron.value = typeof window.electronAPI?.printReceipt === 'function'
-
   try {
     const [saleRes, settingsRes] = await Promise.all([
       axios.get(`/api/sales/${route.params.id}`),

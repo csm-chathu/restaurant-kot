@@ -137,6 +137,10 @@
             <input id="deposit" type="checkbox" v-model="form.bottle_deposit_required" class="rounded text-gold-600" />
             <label for="deposit" class="text-sm text-gray-700">Bottle deposit required</label>
           </div>
+          <div v-if="!isFood && form.bottle_deposit_required">
+            <label class="form-label">Empty Bottle Deposit Amount (LKR) *</label>
+            <input v-model.number="form.bottle_deposit_amount" type="number" step="0.01" min="0" required class="form-input" placeholder="0.00" />
+          </div>
         </div>
 
         <p v-if="error" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ error }}</p>
@@ -196,7 +200,7 @@ const form = reactive({
   product_type: 'Liquor', brand: '', unit_type: '', base_unit: '', selling_variants: '',
   shot_variants: [],
   purchase_price: '', selling_price: '', stock_quantity: 0, min_stock_level: 5,
-  bottle_deposit_required: false, is_active: true, barcode: '',
+  bottle_deposit_required: false, bottle_deposit_amount: 0, is_active: true, barcode: '',
 })
 
 const saving = ref(false)

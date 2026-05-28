@@ -265,6 +265,8 @@
         </div>
       </div>
     </teleport>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -272,12 +274,15 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
-const buybacks  = ref({ data: [], total: 0, last_page: 1 })
-const customers = ref([])
-const goldRate  = ref(null)
-const showModal = ref(false)
-const editing   = ref(null)
+const buybacks       = ref({ data: [], total: 0, last_page: 1 })
+const customers      = ref([])
+const goldRate       = ref(null)
+const showModal      = ref(false)
+const editing        = ref(null)
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 const saving    = ref(false)
 const formError = ref('')
 const page      = ref(1)
@@ -346,9 +351,14 @@ async function save() {
   } finally { saving.value = false }
 }
 
-async function del(b) {
-  if (!confirm(`Delete buy-back ${b.buyback_number}?`)) return
-  await axios.delete(`/api/gold-buybacks/${b.id}`)
+function del(b) {
+  confirmDelete.value  = b
+  confirmMessage.value = `Delete buy-back ${b.buyback_number}? This cannot be undone.`
+}
+
+async function doDelete() {
+  await axios.delete(`/api/gold-buybacks/${confirmDelete.value.id}`)
+  confirmDelete.value = null
   load()
 }
 

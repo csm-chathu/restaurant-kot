@@ -155,6 +155,8 @@
         </form>
       </div>
     </div>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -162,6 +164,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import axios from 'axios'
 
 const auth     = useAuthStore()
@@ -169,10 +172,12 @@ const authUser = auth.user
 
 const users       = ref([])
 const branches    = ref([])
-const showModal   = ref(false)
-const editing     = ref(null)
-const saving      = ref(false)
-const formError   = ref('')
+const showModal      = ref(false)
+const editing        = ref(null)
+const saving         = ref(false)
+const formError      = ref('')
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 const search      = ref('')
 const filterRole   = ref('')
 const filterBranch = ref('')
@@ -238,13 +243,19 @@ async function save() {
   } finally { saving.value = false }
 }
 
-async function deleteUser(user) {
-  if (!confirm(`Delete user "${user.name}"? This cannot be undone.`)) return
+function deleteUser(user) {
+  confirmDelete.value  = user
+  confirmMessage.value = `Delete user "${user.name}"? This cannot be undone.`
+}
+
+async function doDelete() {
   try {
-    await axios.delete(`/api/users/${user.id}`)
+    await axios.delete(`/api/users/${confirmDelete.value.id}`)
+    confirmDelete.value = null
     load()
   } catch (e) {
-    alert(e.response?.data?.message ?? 'Error deleting user')
+    formError.value     = e.response?.data?.message ?? 'Error deleting user'
+    confirmDelete.value = null
   }
 }
 

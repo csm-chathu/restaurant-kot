@@ -65,7 +65,12 @@
                 </span>
               </td>
               <td class="table-td font-semibold text-gold-700">{{ Number(p.selling_price).toLocaleString() }}</td>
-              <td class="table-td">{{ p.bottle_deposit_required ? 'Yes' : 'No' }}</td>
+              <td class="table-td">
+                <span v-if="p.bottle_deposit_required" class="text-amber-700 font-medium">
+                  LKR {{ Number(p.bottle_deposit_amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }) }}
+                </span>
+                <span v-else class="text-gray-400">—</span>
+              </td>
               <td class="table-td">
                 <span :class="p.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
                   {{ p.is_active ? 'Active' : 'Inactive' }}
@@ -116,23 +121,7 @@
       :taxes="taxes"
       @close="showModal = false" @saved="onSaved" />
 
-    <!-- Delete confirmation modal -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="confirmDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
-            <h3 class="font-semibold text-gray-900 mb-1">Delete Product</h3>
-            <p class="text-sm text-gray-500 mb-5">Are you sure you want to delete <span class="font-medium text-gray-700">{{ confirmDelete.name }}</span>? This cannot be undone.</p>
-            <div class="flex gap-3 justify-end">
-              <button @click="confirmDelete = null" class="btn-secondary px-4 py-1.5 text-sm">Cancel</button>
-              <button @click="doDelete" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700">
-                <TrashIcon class="w-4 h-4" /> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
 
     <!-- Image zoom lightbox -->
     <Teleport to="body">
@@ -163,6 +152,7 @@ import axios from 'axios'
 import { PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import JsBarcode from 'jsbarcode'
 import ProductModal from '@/components/ProductModal.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const products      = ref({ data: [] })
 const categories    = ref([])
@@ -176,9 +166,10 @@ const showModal     = ref(false)
 const editing       = ref(null)
 const loading       = ref(false)
 const zoomedImage   = ref(null)
-const printingId    = ref(null)
-const searchInput   = ref(null)
-const confirmDelete = ref(null)
+const printingId     = ref(null)
+const searchInput    = ref(null)
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 
 let debounceTimer = null
 function debouncedFetch() {
@@ -278,7 +269,8 @@ function reprintBarcode(product) {
 }
 
 function deleteProduct(p) {
-  confirmDelete.value = p
+  confirmDelete.value  = p
+  confirmMessage.value = `Delete "${p.name}"? This cannot be undone.`
 }
 
 async function doDelete() {

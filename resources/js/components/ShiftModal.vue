@@ -301,8 +301,8 @@ async function printSlip() {
   const wrapper = document.getElementById('shift-slip-wrapper')
   if (!wrapper) return
 
-  // Show only the slip, hide entire app
-  if (app) app.style.display = 'none'
+  // Use setProperty('important') to beat SaleReceipt's @media print `display:block !important` on #app
+  if (app) app.style.setProperty('display', 'none', 'important')
   wrapper.style.display = 'block'
   void document.body.offsetHeight // flush layout so Chromium sees the changes
 
@@ -312,7 +312,7 @@ async function printSlip() {
   await new Promise(r => setTimeout(r, 600))
 
   wrapper.style.display = 'none'
-  if (app) app.style.display = ''
+  if (app) app.style.removeProperty('display')
 }
 
 async function submit() {

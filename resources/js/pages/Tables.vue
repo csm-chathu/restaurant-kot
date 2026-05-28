@@ -211,6 +211,8 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -223,12 +225,15 @@ import {
   UserIcon, UserPlusIcon, CalendarDaysIcon, PencilSquareIcon,
   TableCellsIcon,
 } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const tables          = ref({ data: [] })
 const search          = ref('')
 const page            = ref(1)
 const statusFilter    = ref('')
 const loading         = ref(false)
+const confirmDelete   = ref(null)
+const confirmMessage  = ref('')
 const showNewForm     = ref(false)
 const savingNew       = ref(false)
 const newTableError   = ref('')
@@ -306,13 +311,18 @@ async function saveEdit(table) {
   }
 }
 
-async function deleteTable(table) {
-  if (!confirm(`Delete table ${table.table_number}? This action cannot be undone.`)) return
+function deleteTable(table) {
+  confirmDelete.value  = table
+  confirmMessage.value = `Delete table ${table.table_number}? This cannot be undone.`
+}
+
+async function doDelete() {
   try {
-    await axios.delete(`/api/tables/${table.id}`)
+    await axios.delete(`/api/tables/${confirmDelete.value.id}`)
+    confirmDelete.value = null
     fetchData()
   } catch (e) {
-    alert(e.response?.data?.message ?? 'Could not delete table')
+    confirmDelete.value = null
   }
 }
 

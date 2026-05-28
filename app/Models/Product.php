@@ -16,12 +16,13 @@ class Product extends Model
         'brand', 'unit_type', 'base_unit', 'selling_variants', 'shot_variants',
         'purchase_price', 'selling_price',
         'stock_quantity', 'min_stock_level', 'image', 'image_public_id', 'is_active', 'supplier_id',
-        'bottle_deposit_required', 'tax_setting_id',
+        'bottle_deposit_required', 'bottle_deposit_amount', 'tax_setting_id',
     ];
 
     protected $casts = [
         'is_active'               => 'boolean',
         'bottle_deposit_required' => 'boolean',
+        'bottle_deposit_amount'   => 'float',
         'purchase_price'          => 'float',
         'selling_price'           => 'float',
         'shot_variants'           => 'array',

@@ -78,6 +78,8 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -85,12 +87,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
-const categories = ref({ data: [] })
-const showModal  = ref(false)
-const editing    = ref(null)
-const saving     = ref(false)
-const error      = ref('')
+const categories    = ref({ data: [] })
+const showModal     = ref(false)
+const editing       = ref(null)
+const saving        = ref(false)
+const error         = ref('')
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 const form       = reactive({ name: '', description: '', is_active: true, enable_variants: false })
 
 async function fetch() {
@@ -112,9 +117,14 @@ async function save() {
   } finally { saving.value = false }
 }
 
-async function del(c) {
-  if (!confirm(`Delete "${c.name}"?`)) return
-  await axios.delete(`/api/categories/${c.id}`)
+function del(c) {
+  confirmDelete.value  = c
+  confirmMessage.value = `Delete "${c.name}"? This cannot be undone.`
+}
+
+async function doDelete() {
+  await axios.delete(`/api/categories/${confirmDelete.value.id}`)
+  confirmDelete.value = null
   fetch()
 }
 

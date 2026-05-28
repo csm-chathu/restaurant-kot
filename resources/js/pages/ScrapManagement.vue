@@ -170,6 +170,8 @@
         </div>
       </div>
     </teleport>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -177,11 +179,14 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { ArrowPathIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
-const scraps   = ref({ data: [], total: 0, last_page: 1 })
-const products = ref([])
-const page     = ref(1)
-const filters  = reactive({ status: '' })
+const scraps         = ref({ data: [], total: 0, last_page: 1 })
+const products       = ref([])
+const page           = ref(1)
+const filters        = reactive({ status: '' })
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 
 // Edit state
 const showEdit  = ref(false)
@@ -254,9 +259,14 @@ async function doConvert() {
   } finally { convertSaving.value = false }
 }
 
-async function del(s) {
-  if (!confirm(`Delete scrap item ${s.sku}?`)) return
-  await axios.delete(`/api/scrap-items/${s.id}`)
+function del(s) {
+  confirmDelete.value  = s
+  confirmMessage.value = `Delete scrap item ${s.sku}? This cannot be undone.`
+}
+
+async function doDelete() {
+  await axios.delete(`/api/scrap-items/${confirmDelete.value.id}`)
+  confirmDelete.value = null
   load()
 }
 

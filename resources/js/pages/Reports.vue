@@ -646,6 +646,7 @@
       <div v-if="!bsData" class="card text-center text-gray-400 py-12">Loading…</div>
     </div>
 
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -653,6 +654,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import axios from 'axios'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const tabLabels = {
   summary:    'Sales Summary',
@@ -891,10 +893,12 @@ async function exportPdf() {
 }
 
 // Tax Settings
-const showTaxModal = ref(false)
-const editingTax   = ref(null)
-const taxSaving    = ref(false)
-const taxError     = ref('')
+const showTaxModal   = ref(false)
+const editingTax     = ref(null)
+const taxSaving      = ref(false)
+const taxError       = ref('')
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 const taxForm = reactive({ name: '', rate: 0, applies_to: 'all', is_active: true, description: '' })
 
 function openTaxModal(t) {
@@ -915,9 +919,14 @@ async function saveTax() {
   } finally { taxSaving.value = false }
 }
 
-async function deleteTax(t) {
-  if (!confirm(`Delete tax "${t.name}"?`)) return
-  await axios.delete(`/api/tax-settings/${t.id}`)
+function deleteTax(t) {
+  confirmDelete.value  = t
+  confirmMessage.value = `Delete tax "${t.name}"? This cannot be undone.`
+}
+
+async function doDelete() {
+  await axios.delete(`/api/tax-settings/${confirmDelete.value.id}`)
+  confirmDelete.value = null
   loadTaxes()
 }
 

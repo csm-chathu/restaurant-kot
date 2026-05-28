@@ -1010,10 +1010,11 @@ function addProductFromGrid(product) {
     }
   }
   const item = newItem()
-  item.product_id     = product.id
-  item.product_ref    = product
-  item.product_search = product.name || ''
-  item.unit_price     = product.selling_price
+  item.product_id            = product.id
+  item.product_ref           = product
+  item.product_search        = product.name || ''
+  item.unit_price            = product.selling_price
+  item.bottle_deposit_amount = Number(product.bottle_deposit_amount || 0)
   form.items.push(item)
   recalcItem(item)
 }
@@ -1030,7 +1031,7 @@ function decrementItem(item, index) {
 function newItem() {
   return {
     product_id: '', product_search: '', quantity: 1, unit_price: 0, discount: 0,
-    empty_bottle_returned: false, bottle_deposit_amount: 100, serving_ml: 0,
+    empty_bottle_returned: false, bottle_deposit_amount: 0, serving_ml: 0,
     open_bottle_id: null, open_bottle_ref: null,
     product_ref: null, _lineTotal: 0,
     item_notes: '', item_notes_custom: '', selected_shot_variant: null,
@@ -1110,10 +1111,10 @@ function fillProduct(item) {
   item.product_ref    = p
   item.product_search = p.name || ''
   item.unit_price     = p.selling_price
-  item.serving_ml           = 0
+  item.serving_ml            = 0
   item.selected_shot_variant = null
   item.empty_bottle_returned = false
-  item.bottle_deposit_amount = 100
+  item.bottle_deposit_amount = Number(p.bottle_deposit_amount || 0)
   recalcItem(item)
 }
 
@@ -1178,7 +1179,7 @@ async function loadDraft(draft) {
         discount:               Number(si.discount || 0),
         serving_ml:             shotVariant ? 0 : Number(si.serving_ml || 0),
         empty_bottle_returned:  false,
-        bottle_deposit_amount:  100,
+        bottle_deposit_amount:  Number(si.product?.bottle_deposit_amount || 0),
         open_bottle_id:         null,
         open_bottle_ref:        null,
         selected_shot_variant:  shotVariant,

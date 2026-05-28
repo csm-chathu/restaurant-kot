@@ -180,6 +180,8 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -192,18 +194,21 @@ import {
   ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
   ChartBarIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, PencilSquareIcon,
 } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const auth         = useAuthStore()
 const isCashier    = computed(() => auth.user?.role === 'cashier')
 const newBillRoute = localStorage.getItem('pos_bill_layout') === '2' ? '/sales/new2' : '/sales/new'
 const editDraftRoute = (id) => ({ name: localStorage.getItem('pos_bill_layout') === '2' ? 'sales.new2' : 'sales.new', query: { draft: id } })
 
-const sales        = ref({ data: [] })
-const search       = ref('')
-const page         = ref(1)
-const dateFrom     = ref('')
-const dateTo       = ref('')
-const statusFilter = ref('')
+const sales          = ref({ data: [] })
+const search         = ref('')
+const page           = ref(1)
+const dateFrom       = ref('')
+const dateTo         = ref('')
+const statusFilter   = ref('')
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 const quickFilter  = ref('')
 const loading      = ref(false)
 
@@ -315,9 +320,14 @@ function paymentMethodClass(sale) {
   return methodClass(methods[0] ?? sale.payment_method)
 }
 
-async function del(s) {
-  if (!confirm(`Delete invoice ${s.invoice_number}?\nThis will restore stock. This action cannot be undone.`)) return
-  await axios.delete(`/api/sales/${s.id}`)
+function del(s) {
+  confirmDelete.value  = s
+  confirmMessage.value = `Delete invoice ${s.invoice_number}? This will restore stock and cannot be undone.`
+}
+
+async function doDelete() {
+  await axios.delete(`/api/sales/${confirmDelete.value.id}`)
+  confirmDelete.value = null
   fetchData()
 }
 

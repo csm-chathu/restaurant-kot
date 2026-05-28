@@ -97,6 +97,8 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -104,6 +106,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { PlusIcon, TrashIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const purchases      = ref({ data: [] })
 const suppliers      = ref([])
@@ -112,6 +115,8 @@ const supplierFilter = ref('')
 const expandedId     = ref(null)
 const expandedItems  = ref({})
 const loadingItems   = ref(false)
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 
 let timer = null
 function debouncedFetch() { clearTimeout(timer); timer = setTimeout(() => { page.value=1; fetch() }, 400) }
@@ -149,8 +154,14 @@ function statusClass(s) {
   }[s] ?? 'bg-gray-100 text-gray-700'
 }
 
-async function del(p) {
-  if (!confirm(`Delete purchase order ${p.purchase_number}?`)) return
+function del(p) {
+  confirmDelete.value  = p
+  confirmMessage.value = `Delete purchase order ${p.purchase_number}? This cannot be undone.`
+}
+
+async function doDelete() {
+  const p = confirmDelete.value
+  confirmDelete.value = null
   await axios.delete(`/api/purchases/${p.id}`)
   delete expandedItems.value[p.id]
   if (expandedId.value === p.id) expandedId.value = null

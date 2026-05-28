@@ -109,6 +109,8 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
   </div>
 </template>
 
@@ -116,11 +118,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
-const customers = ref({ data: [] })
-const search    = ref(''); const page = ref(1)
-const showModal = ref(false); const editing = ref(null)
-const saving    = ref(false); const error   = ref('')
+const customers     = ref({ data: [] })
+const search        = ref(''); const page = ref(1)
+const showModal     = ref(false); const editing = ref(null)
+const saving        = ref(false); const error   = ref('')
+const confirmDelete  = ref(null)
+const confirmMessage = ref('')
 const form      = reactive({ name:'',email:'',phone:'',address:'',city:'',country:'',date_of_birth:'',gender:'',notes:'', id_type:'',id_number:'',id_expiry:'',kyc_verified:false,kyc_notes:'' })
 
 let debounceTimer = null
@@ -144,9 +149,15 @@ async function save() {
   finally { saving.value=false }
 }
 
-async function del(c) {
-  if (!confirm(`Delete "${c.name}"?`)) return
-  await axios.delete(`/api/customers/${c.id}`); fetch()
+function del(c) {
+  confirmDelete.value  = c
+  confirmMessage.value = `Delete "${c.name}"? This cannot be undone.`
+}
+
+async function doDelete() {
+  await axios.delete(`/api/customers/${confirmDelete.value.id}`)
+  confirmDelete.value = null
+  fetch()
 }
 
 onMounted(fetch)

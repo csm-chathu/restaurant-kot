@@ -3,14 +3,10 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <input v-model="search" type="search" placeholder="Search products…" class="form-input w-64" @input="debouncedFetch" />
+        <input ref="searchInput" v-model="search" type="search" placeholder="Search products…" class="form-input w-64" @input="debouncedFetch" />
         <select v-model="categoryFilter" class="form-input w-44" @change="fetchProducts">
           <option value="">All categories</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-        <select v-model="typeFilter" class="form-input w-44" @change="fetchProducts">
-          <option value="">All product types</option>
-          <option v-for="type in productTypes" :key="type" :value="type">{{ type }}</option>
         </select>
         <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
           <input type="checkbox" v-model="lowStockOnly" @change="fetchProducts" class="rounded text-gold-600" />
@@ -40,7 +36,6 @@
               <th class="table-th">Image</th>
               <th class="table-th">SKU</th>
               <th class="table-th">Name</th>
-              <th class="table-th">Type</th>
               <th class="table-th">Brand</th>
               <th class="table-th">Category</th>
               <th class="table-th">Unit / Base</th>
@@ -61,7 +56,6 @@
               </td>
               <td class="table-td font-mono text-xs">{{ p.sku }}</td>
               <td class="table-td font-medium">{{ p.name }}</td>
-              <td class="table-td">{{ p.product_type }}</td>
               <td class="table-td text-gray-500">{{ p.brand || '—' }}</td>
               <td class="table-td text-gray-500">{{ p.category?.name }}</td>
               <td class="table-td">{{ [p.unit_type, p.base_unit].filter(Boolean).join(' / ') || '—' }}</td>
@@ -102,7 +96,7 @@
               </td>
             </tr>
             <tr v-if="!products.data?.length">
-              <td colspan="12" class="table-td text-center text-gray-400 py-8">No products found</td>
+              <td colspan="11" class="table-td text-center text-gray-400 py-8">No products found</td>
             </tr>
           </tbody>
         </table>
@@ -158,7 +152,6 @@ const suppliers     = ref([])
 const taxes         = ref([])
 const search        = ref('')
 const categoryFilter = ref('')
-const typeFilter    = ref('')
 const lowStockOnly  = ref(false)
 const page          = ref(1)
 const showModal     = ref(false)
@@ -166,7 +159,7 @@ const editing       = ref(null)
 const loading       = ref(false)
 const zoomedImage   = ref(null)
 const printingId    = ref(null)
-const productTypes  = ['Liquor', 'Beer', 'Soft Drinks', 'Food', 'Accessories']
+const searchInput   = ref(null)
 
 let debounceTimer = null
 function debouncedFetch() {
@@ -177,7 +170,7 @@ function debouncedFetch() {
 async function fetchProducts() {
   loading.value = true
   try {
-    const params = { page: page.value, search: search.value, category_id: categoryFilter.value, product_type: typeFilter.value }
+    const params = { page: page.value, search: search.value, category_id: categoryFilter.value }
     if (lowStockOnly.value) params.low_stock = 1
     const { data } = await axios.get('/api/products', { params })
     products.value = data
@@ -268,7 +261,8 @@ function reprintBarcode(product) {
 async function deleteProduct(p) {
   if (!confirm(`Delete "${p.name}"?`)) return
   await axios.delete(`/api/products/${p.id}`)
-  fetchProducts()
+  await fetchProducts()
+  searchInput.value?.focus()
 }
 
 async function onSaved(payload) {

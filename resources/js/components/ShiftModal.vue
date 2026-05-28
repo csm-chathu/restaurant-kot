@@ -13,6 +13,9 @@
         <div>
           <label class="form-label">Opening Cash (LKR) *</label>
           <input v-model.number="openingCash" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" />
+          <p v-if="suggestedOpening > 0" class="text-xs text-amber-600 mt-1">
+            Suggested from last shift leftover: LKR {{ lkr(suggestedOpening) }}
+          </p>
         </div>
         <p v-if="error" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ error }}</p>
       </div>
@@ -70,6 +73,10 @@
             <div class="flex justify-between font-semibold text-base" :class="closeSummary.variance < 0 ? 'text-red-600' : 'text-green-700'">
               <span>Variance</span><span>{{ closeSummary.variance >= 0 ? '+' : '' }}LKR {{ lkr(closeSummary.variance) }}</span>
             </div>
+            <div class="flex justify-between mt-1"><span class="text-gray-500">Handover to Boss</span><span class="text-red-600 font-medium">LKR {{ lkr(closeSummary.handover_amount) }}</span></div>
+            <div class="flex justify-between font-semibold" :class="closeSummary.leftover_amount > 0 ? 'text-amber-700' : 'text-gray-700'">
+              <span>Leftover / Next Opening</span><span>LKR {{ lkr(closeSummary.leftover_amount) }}</span>
+            </div>
           </div>
         </template>
 
@@ -80,6 +87,28 @@
             <input v-model.number="closingCash" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" />
           </div>
           <div>
+            <label class="form-label">Handover to Boss (LKR)</label>
+            <input v-model.number="handoverAmount" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" />
+            <p class="text-xs text-gray-400 mt-1">Amount handed over to management. Leave 0 to hand over everything.</p>
+          </div>
+          <!-- Live leftover preview -->
+          <div class="rounded-lg border px-4 py-3 text-sm"
+               :class="leftoverAmount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Closing Cash</span>
+              <span class="font-medium">LKR {{ lkr(closingCash) }}</span>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-gray-500">Handover</span>
+              <span class="font-medium text-red-600">− LKR {{ lkr(handoverAmount) }}</span>
+            </div>
+            <div class="flex justify-between mt-1 font-semibold border-t border-dashed pt-1"
+                 :class="leftoverAmount > 0 ? 'text-amber-700' : 'text-gray-600'">
+              <span>Leftover (Next Opening Balance)</span>
+              <span>LKR {{ lkr(leftoverAmount) }}</span>
+            </div>
+          </div>
+          <div>
             <label class="form-label">Notes <span class="text-gray-400 font-normal">(optional)</span></label>
             <textarea v-model="notes" rows="2" class="form-input" placeholder="Any remarks…"></textarea>
           </div>
@@ -88,8 +117,19 @@
         <p v-if="error" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ error }}</p>
       </div>
 
-      <!-- Hidden slip for printing -->
-      <div id="shift-slip-wrapper" style="display:none;">
+      <div class="flex justify-end gap-3 px-6 py-4 border-t">
+        <button v-if="!closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
+        <button v-if="closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Done</button>
+        <button v-if="!closeSummary" @click="submit" :disabled="saving" class="btn-primary">
+          {{ saving ? 'Please wait…' : (currentShift ? 'Close Shift & Print' : 'Open Shift') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slip teleported to body so @media print can isolate it from #app -->
+  <Teleport to="body">
+  <div id="shift-slip-wrapper" style="display:none;">
         <div id="shift-slip" class="shift-slip-paper">
           <!-- Header -->
           <div style="text-align:center; margin-bottom:4px;">
@@ -165,6 +205,12 @@
                 <span>Variance</span>
                 <span>{{ closeSummary.variance >= 0 ? '+' : '' }}LKR {{ lkr(closeSummary.variance) }}</span>
               </div>
+              <div style="display:flex; justify-content:space-between; margin-top:4px; border-top:1px dashed #999; padding-top:3px;">
+                <span>Handover to Boss</span><span style="color:#c00; font-weight:700;">LKR {{ lkr(closeSummary.handover_amount) }}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-weight:800; font-size:12px; color:#b45309;">
+                <span>Leftover / Next Opening</span><span>LKR {{ lkr(closeSummary.leftover_amount) }}</span>
+              </div>
             </div>
             <template v-if="closeSummary.shift.notes">
               <hr style="border:none; border-top:1px dashed #666; margin:5px 0;" />
@@ -183,16 +229,7 @@
           <div style="text-align:center; font-size:10px; font-weight:600;">*** Thank You ***</div>
         </div>
       </div>
-
-      <div class="flex justify-end gap-3 px-6 py-4 border-t">
-        <button v-if="!closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
-        <button v-if="closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Done</button>
-        <button v-if="!closeSummary" @click="submit" :disabled="saving" class="btn-primary">
-          {{ saving ? 'Please wait…' : (currentShift ? 'Close Shift & Print' : 'Open Shift & Print') }}
-        </button>
-      </div>
-    </div>
-  </div>
+</Teleport>
 </template>
 
 <script setup>
@@ -202,21 +239,32 @@ import axios from 'axios'
 const props = defineProps({ currentShift: Object })
 const emit  = defineEmits(['close', 'shifted'])
 
-const openingCash  = ref(0)
-const closingCash  = ref(0)
-const notes        = ref('')
-const saving       = ref(false)
-const error        = ref('')
-const closeSummary = ref(null)
-const restaurant   = ref({ name: '', address: '' })
+const openingCash     = ref(0)
+const closingCash     = ref(0)
+const handoverAmount  = ref(0)
+const notes           = ref('')
+const saving          = ref(false)
+const error           = ref('')
+const closeSummary    = ref(null)
+const restaurant      = ref({ name: '', address: '' })
+const suggestedOpening = ref(0)
 
-const preferredPrinter = import.meta.env.VITE_THERMAL_PRINTER ?? ''
+const leftoverAmount = computed(() => Math.max(0, closingCash.value - handoverAmount.value))
+
 
 onMounted(async () => {
   try {
     const { data } = await axios.get('/api/settings/restaurant').catch(() => ({ data: {} }))
     restaurant.value = data || {}
   } catch {}
+
+  if (!props.currentShift) {
+    try {
+      const { data } = await axios.get('/api/cashier-shifts/suggested-opening')
+      suggestedOpening.value = data.suggested_opening ?? 0
+      if (suggestedOpening.value > 0) openingCash.value = suggestedOpening.value
+    } catch {}
+  }
 })
 
 const slipCashier     = computed(() => closeSummary.value?.shift?.user?.name ?? props.currentShift?.user?.name ?? '')
@@ -247,66 +295,24 @@ function formatDateTime(dt) {
          d.toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
 }
 
-function buildSlipHtml() {
-  const el = document.getElementById('shift-slip')
-  if (!el) return ''
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-    html,body{margin:0;padding:0;background:#fff;}
-    .shift-slip-paper{width:75mm;max-width:75mm;margin:0;padding:4mm 4mm 4mm 3mm;box-sizing:border-box;
-      font-family:'Courier New',Courier,monospace;font-size:11pt;line-height:1.45;font-weight:500;color:#000;background:#fff;}
-    @page{size:76mm auto;margin:0;}
-  </style></head><body>${el.outerHTML}</body></html>`
-}
-
-function loadQzScript() {
-  return new Promise((resolve, reject) => {
-    if (window.qz) { resolve(); return }
-    const s = document.createElement('script')
-    s.src = 'https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js'
-    s.async = true
-    s.onload = () => resolve()
-    s.onerror = () => reject(new Error('Failed to load QZ Tray'))
-    document.head.appendChild(s)
-  })
-}
-
 async function printSlip() {
   await nextTick()
+  const app     = document.getElementById('app')
+  const wrapper = document.getElementById('shift-slip-wrapper')
+  if (!wrapper) return
 
-  const html = buildSlipHtml()
-  if (!html) return
+  // Show only the slip, hide entire app
+  if (app) app.style.display = 'none'
+  wrapper.style.display = 'block'
+  void document.body.offsetHeight // flush layout so Chromium sees the changes
 
-  if (window.electronAPI?.printReceipt) {
-    await window.electronAPI.printReceipt('pos', { pageSize: { width: 76000, height: 500000 } })
-    return
-  }
+  // Use window.print() only — electronAPI.printReceipt + kiosk-printing causes double print
+  // kiosk-printing captures async, so hold DOM state for 600ms before restoring
+  window.print()
+  await new Promise(r => setTimeout(r, 600))
 
-  try {
-    await loadQzScript()
-    const qz = window.qz
-    qz.api.setPromiseType(Promise)
-    qz.security.setCertificatePromise(() => Promise.resolve(null))
-    qz.security.setSignaturePromise(() => Promise.resolve(''))
-    if (!qz.websocket.isActive()) await qz.websocket.connect({ retries: 2, delay: 0.5 })
-
-    let printer = null
-    if (preferredPrinter) printer = await qz.printers.find(preferredPrinter).catch(() => null)
-    if (!printer) printer = await qz.printers.getDefault().catch(() => null)
-    if (!printer) throw new Error('No printer')
-
-    const config = qz.configs.create(printer, { units: 'mm', copies: 1, scaleContent: true, rasterize: true })
-    await qz.print(config, [{ type: 'html', format: 'plain', data: html }])
-    return
-  } catch {}
-
-  // Fallback: open isolated print window so only the slip is printed
-  const win = window.open('', '_blank', 'width=400,height=600')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  win.print()
-  win.close()
+  wrapper.style.display = 'none'
+  if (app) app.style.display = ''
 }
 
 async function submit() {
@@ -317,16 +323,16 @@ async function submit() {
       const { data } = await axios.post('/api/cashier-shifts/open', { opening_cash: openingCash.value })
       emit('shifted', data)
       emit('close')
-      printSlip().catch(() => {})
     } else {
       const { data } = await axios.post('/api/cashier-shifts/close', {
-        closing_cash: closingCash.value,
-        notes: notes.value || null,
+        closing_cash:    closingCash.value,
+        handover_amount: handoverAmount.value,
+        notes:           notes.value || null,
       })
       closeSummary.value = data
-      emit('shifted', null)
-      await nextTick()
-      printSlip().catch(() => {})
+      await nextTick()       // render summary while currentShift prop is still set
+      await printSlip()      // hold here until Electron confirms print job sent
+      emit('shifted', null)  // only now let parent clear currentShift
     }
   } catch (e) {
     error.value = e.response?.data?.message ?? 'Something went wrong.'
@@ -336,3 +342,24 @@ async function submit() {
 }
 </script>
 
+<style>
+@media print {
+  /* Only the slip wrapper (teleported sibling of #app) is visible */
+  #shift-slip-wrapper {
+    padding: 0 5mm !important;
+    background: #fff !important;
+  }
+  .shift-slip-paper {
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+    line-height: 1.7 !important;
+    color: #000 !important;
+    width: 66mm !important;
+    max-width: 66mm !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page { size: 76mm auto; margin: 0; }
+}
+</style>

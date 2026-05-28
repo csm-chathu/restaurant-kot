@@ -69,11 +69,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('products',   ProductController::class);
     Route::apiResource('customers',  CustomerController::class);
     Route::apiResource('tables',     TableController::class);
-    Route::get('/cashier-shifts/current',   [CashierShiftController::class, 'current']);
-    Route::post('/cashier-shifts/open',     [CashierShiftController::class, 'open']);
-    Route::post('/cashier-shifts/close',    [CashierShiftController::class, 'close']);
-    Route::post('/cashier-shifts/cash-out', [CashierShiftController::class, 'cashOut']);
-    Route::get('/cashier-shifts/cash-outs', [CashierShiftController::class, 'cashOuts']);
+    Route::get('/cashier-shifts/current',          [CashierShiftController::class, 'current']);
+    Route::get('/cashier-shifts/report',           [CashierShiftController::class, 'report']);
+    Route::get('/cashier-shifts/suggested-opening',[CashierShiftController::class, 'suggestedOpening']);
+    Route::post('/cashier-shifts/open',            [CashierShiftController::class, 'open']);
+    Route::post('/cashier-shifts/close',           [CashierShiftController::class, 'close']);
+    Route::post('/cashier-shifts/cash-out',        [CashierShiftController::class, 'cashOut']);
+    Route::get('/cashier-shifts/cash-outs',        [CashierShiftController::class, 'cashOuts']);
 
     Route::apiResource('sales',      SaleController::class)->except(['update']);
     Route::put('/sales/{sale}',      [SaleController::class, 'update']); // Draft bill updates

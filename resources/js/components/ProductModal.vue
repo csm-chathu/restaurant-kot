@@ -21,10 +21,32 @@
             <label class="form-label">Custom Barcode <span class="text-gray-400 font-normal">(optional override)</span></label>
             <input v-model="form.barcode" class="form-input font-mono" placeholder="Scan or type barcode — leave blank to use SKU" />
           </div>
+          <div class="col-span-2">
+            <label class="form-label mb-1">Type *</label>
+            <div class="flex rounded-lg border border-gray-200 overflow-hidden w-fit">
+              <button type="button"
+                @click="setTab('food')"
+                :class="activeTab === 'food'
+                  ? 'bg-amber-500 text-white font-semibold'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'"
+                class="px-6 py-2 text-sm transition-colors">
+                Food
+              </button>
+              <button type="button"
+                @click="setTab('other')"
+                :class="activeTab === 'other'
+                  ? 'bg-amber-500 text-white font-semibold'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'"
+                class="px-6 py-2 text-sm border-l border-gray-200 transition-colors">
+                Other
+              </button>
+            </div>
+          </div>
           <div>
             <label class="form-label">Category *</label>
             <select v-model="form.category_id" required class="form-input">
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+              <option value="" disabled>— Select —</option>
+              <option v-for="c in filteredCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
           <div v-if="!isFood">
@@ -137,14 +159,29 @@ const emit  = defineEmits(['close', 'saved'])
 
 const unitTypes = ['Bottle', 'Can', 'Pack', 'Glass', 'Case', 'Plate', 'Serving']
 
-const isFood = computed(() => {
-  const cat = (props.categories ?? []).find(c => c.id === form.category_id)
-  return ['food', 'snacks'].includes((cat?.name ?? '').toLowerCase())
+const FOOD_CATEGORY_NAMES = ['food', 'snacks']
+
+const activeTab = ref('other')
+
+const isFood = computed(() => activeTab.value === 'food')
+
+const filteredCategories = computed(() => {
+  return (props.categories ?? []).filter(c =>
+    isFood.value
+      ? FOOD_CATEGORY_NAMES.includes((c.name ?? '').toLowerCase())
+      : !FOOD_CATEGORY_NAMES.includes((c.name ?? '').toLowerCase())
+  )
 })
+
+function setTab(tab) {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  form.category_id = ''
+}
 
 const isLiquor = computed(() => {
   const cat = (props.categories ?? []).find(c => c.id === form.category_id)
-  return (cat?.name ?? '').toLowerCase().includes('liquor')
+  return !!cat?.enable_variants
 })
 
 const CATEGORY_TYPE_MAP = {
@@ -180,6 +217,8 @@ watch(() => form.selling_price, (val) => {
 
 onMounted(() => {
   if (props.product) {
+    const cat = (props.categories ?? []).find(c => c.id === props.product.category_id)
+    activeTab.value = FOOD_CATEGORY_NAMES.includes((cat?.name ?? '').toLowerCase()) ? 'food' : 'other'
     Object.assign(form, props.product)
     form.selling_variants = Array.isArray(props.product.selling_variants)
       ? props.product.selling_variants.join(', ')

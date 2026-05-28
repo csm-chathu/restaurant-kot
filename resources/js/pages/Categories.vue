@@ -13,6 +13,7 @@
             <th class="table-th">Name</th>
             <th class="table-th">Slug</th>
             <th class="table-th">Products</th>
+            <th class="table-th">Variants</th>
             <th class="table-th">Status</th>
             <th class="table-th">Actions</th>
           </tr>
@@ -22,6 +23,10 @@
             <td class="table-td font-medium">{{ c.name }}</td>
             <td class="table-td text-gray-400 font-mono text-xs">{{ c.slug }}</td>
             <td class="table-td">{{ c.products_count }}</td>
+            <td class="table-td">
+              <span v-if="c.enable_variants" class="badge bg-amber-100 text-amber-700">Enabled</span>
+              <span v-else class="text-gray-300 text-xs">—</span>
+            </td>
             <td class="table-td">
               <span :class="c.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
                 {{ c.is_active ? 'Active' : 'Inactive' }}
@@ -39,7 +44,7 @@
             </td>
           </tr>
           <tr v-if="!categories.data?.length">
-            <td colspan="5" class="table-td text-center text-gray-400 py-8">No categories</td>
+            <td colspan="6" class="table-td text-center text-gray-400 py-8">No categories</td>
           </tr>
         </tbody>
       </table>
@@ -60,6 +65,10 @@
           </div>
           <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" v-model="form.is_active" class="rounded text-gold-600" /> Active
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" v-model="form.enable_variants" class="rounded text-amber-500" />
+            Enable shot/serving variants for products in this category
           </label>
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
         </div>
@@ -82,14 +91,14 @@ const showModal  = ref(false)
 const editing    = ref(null)
 const saving     = ref(false)
 const error      = ref('')
-const form       = reactive({ name: '', description: '', is_active: true })
+const form       = reactive({ name: '', description: '', is_active: true, enable_variants: false })
 
 async function fetch() {
   const { data } = await axios.get('/api/categories', { params: { per_page: 100 } })
   categories.value = data
 }
 
-function openCreate() { editing.value = null; Object.assign(form, { name: '', description: '', is_active: true }); showModal.value = true }
+function openCreate() { editing.value = null; Object.assign(form, { name: '', description: '', is_active: true, enable_variants: false }); showModal.value = true }
 function openEdit(c)  { editing.value = c; Object.assign(form, c); showModal.value = true }
 
 async function save() {

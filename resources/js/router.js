@@ -36,6 +36,7 @@ const routes = [
             { path: 'users',         name: 'users',         component: () => import('@/pages/Users.vue') },
             { path: 'settings',      name: 'settings',      component: () => import('@/pages/RestaurantSettings.vue') },
             { path: 'reports',       name: 'reports',       component: () => import('@/pages/Reports.vue') },
+            { path: 'shift-summary', name: 'shift-summary', component: () => import('@/pages/ShiftSummary.vue') },
             { path: 'day-end',       name: 'day-end',       component: () => import('@/pages/DayEnd.vue') },
             { path: 'finance',       name: 'finance',       component: () => import('@/pages/Finance.vue') },
             { path: 'audit-log',     name: 'audit-log',     component: () => import('@/pages/StockLedger.vue') },

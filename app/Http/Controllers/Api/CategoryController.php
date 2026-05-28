@@ -20,9 +20,10 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'        => 'required|string|max:100|unique:categories',
-            'description' => 'nullable|string',
-            'is_active'   => 'boolean',
+            'name'            => 'required|string|max:100|unique:categories',
+            'description'     => 'nullable|string',
+            'is_active'       => 'boolean',
+            'enable_variants' => 'boolean',
         ]);
         $data['slug'] = Str::slug($data['name']);
         $data['branch_id'] = $request->user()->branch_id;
@@ -38,9 +39,10 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category)
     {
         $data = $request->validate([
-            'name'        => 'required|string|max:100|unique:categories,name,' . $category->id,
-            'description' => 'nullable|string',
-            'is_active'   => 'boolean',
+            'name'            => 'required|string|max:100|unique:categories,name,' . $category->id,
+            'description'     => 'nullable|string',
+            'is_active'       => 'boolean',
+            'enable_variants' => 'boolean',
         ]);
         $data['slug'] = Str::slug($data['name']);
         $category->update($data);
@@ -55,6 +57,6 @@ class CategoryController extends Controller
 
     public function all()
     {
-        return response()->json(Category::where('is_active', true)->get(['id', 'name']));
+        return response()->json(Category::where('is_active', true)->get(['id', 'name', 'enable_variants']));
     }
 }

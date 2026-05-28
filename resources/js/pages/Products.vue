@@ -116,6 +116,24 @@
       :taxes="taxes"
       @close="showModal = false" @saved="onSaved" />
 
+    <!-- Delete confirmation modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="confirmDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+            <h3 class="font-semibold text-gray-900 mb-1">Delete Product</h3>
+            <p class="text-sm text-gray-500 mb-5">Are you sure you want to delete <span class="font-medium text-gray-700">{{ confirmDelete.name }}</span>? This cannot be undone.</p>
+            <div class="flex gap-3 justify-end">
+              <button @click="confirmDelete = null" class="btn-secondary px-4 py-1.5 text-sm">Cancel</button>
+              <button @click="doDelete" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700">
+                <TrashIcon class="w-4 h-4" /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Image zoom lightbox -->
     <Teleport to="body">
       <Transition name="fade">
@@ -160,6 +178,7 @@ const loading       = ref(false)
 const zoomedImage   = ref(null)
 const printingId    = ref(null)
 const searchInput   = ref(null)
+const confirmDelete = ref(null)
 
 let debounceTimer = null
 function debouncedFetch() {
@@ -258,11 +277,15 @@ function reprintBarcode(product) {
   setTimeout(() => { printingId.value = null }, 3000)
 }
 
-async function deleteProduct(p) {
-  if (!confirm(`Delete "${p.name}"?`)) return
+function deleteProduct(p) {
+  confirmDelete.value = p
+}
+
+async function doDelete() {
+  const p = confirmDelete.value
+  confirmDelete.value = null
   await axios.delete(`/api/products/${p.id}`)
   await fetchProducts()
-  searchInput.value?.focus()
 }
 
 async function onSaved(payload) {

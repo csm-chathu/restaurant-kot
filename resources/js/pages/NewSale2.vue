@@ -952,6 +952,13 @@ const gridProducts = computed(() => {
     list = list.filter(p =>
       `${p.name || ''} ${p.sku || ''} ${p.barcode || ''} ${p.brand || ''}`.toLowerCase().includes(q)
     )
+    list = [...list].sort((a, b) => {
+      const aStarts = (a.name || '').toLowerCase().startsWith(q)
+      const bStarts = (b.name || '').toLowerCase().startsWith(q)
+      if (aStarts && !bStarts) return -1
+      if (!aStarts && bStarts) return 1
+      return 0
+    })
   }
   return list
 })

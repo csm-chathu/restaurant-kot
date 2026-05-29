@@ -22,6 +22,13 @@ axios.interceptors.response.use(
     }
 )
 
+// Keep PHP session alive while the tab is visible (every 4 min)
+setInterval(() => {
+    if (localStorage.getItem('token') && document.visibilityState === 'visible') {
+        axios.get('/api/user').catch(() => {})
+    }
+}, 4 * 60 * 1000)
+
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)

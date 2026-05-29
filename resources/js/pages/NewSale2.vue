@@ -283,6 +283,8 @@
                         <span v-if="item.selected_shot_variant" class="text-purple-500 font-normal"> · {{ item.selected_shot_variant.name }}</span>
                         <span v-else-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400 font-normal"> · {{ item.serving_ml }}ml</span>
                       </p>
+                      <!-- DEBUG: remove after fix -->
+                      <p class="text-[10px] text-red-500 break-all">variants={{ JSON.stringify(item.product_ref?.shot_variants) }} len={{ item.product_ref?.shot_variants?.length }}</p>
                     </div>
 
                     <!-- Qty control - larger touch targets -->

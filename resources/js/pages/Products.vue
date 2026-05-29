@@ -203,9 +203,9 @@ function createBarcodeSvg(value) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   JsBarcode(svg, value, {
     format: 'CODE128',
-    width: 1.2,
-    height: 28,
-    margin: 2,
+    width: 0.8,
+    height: 18,
+    margin: 1,
     displayValue: false,
   })
   return svg.outerHTML
@@ -222,13 +222,13 @@ function buildBarcodeLabelHtml(product) {
 <head>
   <meta charset="utf-8">
   <style>
-    @page { size: 30mm 20mm; margin: 0; }
+    @page { size: 30mm 14mm; margin: 0; }
     * { box-sizing: border-box; margin:0; padding:0; }
     body { font-family:'Courier New',monospace; background:#fff; }
-    .label { width:30mm; height:20mm; overflow:hidden; text-align:center; padding-top:6pt; }
-    .name  { font-size:8pt; font-weight:900; line-height:1.2; word-break:break-word; }
-    svg    { width:100%; display:block; margin-top:2pt; }
-    .sku   { font-size:7pt; font-weight:700; letter-spacing:0.5px; margin-top:1pt; }
+    .label { width:30mm; height:14mm; overflow:hidden; text-align:center; padding-top:2pt; }
+    .name  { font-size:6pt; font-weight:900; line-height:1.2; word-break:break-word; }
+    svg    { width:100%; display:block; margin-top:1pt; }
+    .sku   { font-size:6pt; font-weight:700; letter-spacing:0.5px; margin-top:0; }
   </style>
 </head>
 <body>

@@ -169,13 +169,7 @@ const activeTab = ref('other')
 
 const isFood = computed(() => activeTab.value === 'food')
 
-const filteredCategories = computed(() => {
-  return (props.categories ?? []).filter(c =>
-    isFood.value
-      ? FOOD_CATEGORY_NAMES.includes((c.name ?? '').toLowerCase())
-      : !FOOD_CATEGORY_NAMES.includes((c.name ?? '').toLowerCase())
-  )
-})
+const filteredCategories = computed(() => props.categories ?? [])
 
 function setTab(tab) {
   if (activeTab.value === tab) return

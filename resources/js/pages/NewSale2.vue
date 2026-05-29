@@ -324,8 +324,8 @@
                         🍾 Opened · {{ item.open_bottle_ref?.remaining_volume_ml?.toFixed(0) }}ml
                       </span>
 
-                      <!-- Shot variants + open bottle -->
-                      <template v-if="['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type) || ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name)">
+                      <!-- Shot variants -->
+                      <template v-if="item.product_ref?.shot_variants?.length > 0">
                         <template v-if="item.open_bottle_id">
                           <div class="flex items-center gap-1">
                             <span class="text-xs text-gray-400">Price:</span>
@@ -350,10 +350,14 @@
                             @click="item.selected_shot_variant = null; recalcItem(item)"
                             type="button"
                             class="text-xs text-gray-400 hover:text-gray-600">✕ Bottle</button>
-                          <button @click="showOpenBottlePicker(item)" type="button"
-                            class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
-                          >Sell opened bottle</button>
                         </template>
+                      </template>
+
+                      <!-- Open bottle (liquor types only) -->
+                      <template v-if="(['Liquor','Whisky','Vodka'].includes(item.product_ref?.product_type) || ['Hard Liquor','Foreign Liquor'].includes(item.product_ref?.category?.name)) && !item.open_bottle_id">
+                        <button @click="showOpenBottlePicker(item)" type="button"
+                          class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
+                        >Sell opened bottle</button>
                       </template>
 
                       <!-- Bottle deposit -->

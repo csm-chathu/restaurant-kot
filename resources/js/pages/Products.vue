@@ -4,12 +4,12 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <input ref="searchInput" v-model="search" type="search" placeholder="Search products…" class="form-input w-64" @input="debouncedFetch" />
-        <select v-model="categoryFilter" class="form-input w-44" @change="fetchProducts">
+        <select v-model="categoryFilter" class="form-input w-44" @change="resetAndFetch">
           <option value="">All categories</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
         <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
-          <input type="checkbox" v-model="lowStockOnly" @change="fetchProducts" class="rounded text-gold-600" />
+          <input type="checkbox" v-model="lowStockOnly" @change="resetAndFetch" class="rounded text-gold-600" />
           Low stock only
         </label>
       </div>
@@ -171,10 +171,12 @@ const searchInput    = ref(null)
 const confirmDelete  = ref(null)
 const confirmMessage = ref('')
 
+function resetAndFetch() { page.value = 1; fetchProducts() }
+
 let debounceTimer = null
 function debouncedFetch() {
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => { page.value = 1; fetchProducts() }, 400)
+  debounceTimer = setTimeout(resetAndFetch, 400)
 }
 
 async function fetchProducts() {

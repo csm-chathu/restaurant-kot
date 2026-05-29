@@ -9,10 +9,10 @@
           <input v-model="search" type="search" placeholder="Search invoice, customer…"
             class="form-input pl-8 w-52" @input="debouncedFetch" />
         </div>
-        <input v-model="dateFrom" type="date" class="form-input w-36" @change="fetchData" title="From date" />
+        <input v-model="dateFrom" type="date" class="form-input w-36" @change="resetAndFetch" title="From date" />
         <span class="text-gray-400 text-xs">to</span>
-        <input v-model="dateTo"   type="date" class="form-input w-36" @change="fetchData" title="To date" />
-        <select v-model="statusFilter" class="form-input w-32" @change="fetchData">
+        <input v-model="dateTo"   type="date" class="form-input w-36" @change="resetAndFetch" title="To date" />
+        <select v-model="statusFilter" class="form-input w-32" @change="resetAndFetch">
           <option value="">All status</option>
           <option value="paid">Paid</option>
           <option value="pending">Pending</option>
@@ -235,8 +235,10 @@ function setQuick(range) {
   fetchData()
 }
 
+function resetAndFetch() { page.value = 1; fetchData() }
+
 let timer = null
-function debouncedFetch() { clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchData() }, 400) }
+function debouncedFetch() { clearTimeout(timer); timer = setTimeout(resetAndFetch, 400) }
 
 async function fetchData() {
   loading.value = true

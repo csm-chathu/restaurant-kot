@@ -209,7 +209,7 @@ class SaleController extends Controller
 
                     if ($openBottleId) {
                         $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
-                    } elseif ($servingMl > 0 && (in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true) || in_array($i['product']->category?->name, ['Hard Liquor', 'Foreign Liquor'], true))) {
+                    } elseif ($servingMl > 0) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
                     } elseif ($i['product']->isStockTracked()) {
                         $i['product']->decrement('stock_quantity', $i['qty']);
@@ -552,7 +552,7 @@ class SaleController extends Controller
 
                     if ($openBottleId) {
                         $this->handleOpenBottleSell($request, $sale, (int) $openBottleId);
-                    } elseif ($servingMl > 0 && (in_array(strtolower((string) $i['product']->product_type), ['liquor', 'whisky', 'vodka'], true) || in_array($i['product']->category?->name, ['Hard Liquor', 'Foreign Liquor'], true))) {
+                    } elseif ($servingMl > 0) {
                         $this->handleOpenBottlePour($request, $sale, $i['product'], $servingMl * $i['qty']);
                     } elseif ($i['product']->isStockTracked()) {
                         $i['product']->decrement('stock_quantity', $i['qty']);

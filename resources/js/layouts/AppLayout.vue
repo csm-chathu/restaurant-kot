@@ -154,9 +154,10 @@ const allNavItems = [
   { to: '/customers',  label: 'Guests',           icon: UsersIcon,        roles: ['admin', 'owner', 'manager'] },
   { to: '/tables',     label: 'Tables',           icon: TableCellsIcon,   roles: ['admin', 'owner', 'manager'] },
   { to: '/suppliers',  label: 'Suppliers',        icon: TruckIcon,        roles: ['admin', 'owner', 'manager'] },
-  { to: '/sales',      label: 'POS Billing',      icon: ShoppingCartIcon, roles: null },
-  { to: '/reports',    label: 'Reports',          icon: ChartBarIcon,     roles: ['admin', 'owner', 'manager'] },
-  { to: '/purchases',  label: 'Purchase Orders',  icon: ArchiveBoxIcon,   roles: ['admin', 'owner', 'manager', 'store_keeper'] },
+  { to: '/sales',        label: 'POS Billing',      icon: ShoppingCartIcon, roles: null },
+  { to: '/open-bottles', label: 'Open Bottles',    icon: SparklesIcon,     roles: ['admin', 'owner', 'manager', 'cashier'] },
+  { to: '/reports',      label: 'Reports',          icon: ChartBarIcon,     roles: ['admin', 'owner', 'manager'] },
+  { to: '/purchases',    label: 'Purchase Orders',  icon: ArchiveBoxIcon,   roles: ['admin', 'owner', 'manager', 'store_keeper'] },
 ]
 
 const navItems = computed(() => {
@@ -169,7 +170,6 @@ const adminNavItems = [
   { to: '/opening-balance', label: 'Opening Balance', icon: ClipboardDocumentListIcon },
   { to: '/grn',        label: 'GRN',            icon: ClipboardDocumentCheckIcon },
   { to: '/supplier-returns', label: 'Supplier Returns', icon: ArchiveBoxIcon },
-  { to: '/open-bottles', label: 'Open Bottles', icon: SparklesIcon },
   { to: '/bottle-deposits', label: 'Bottle Deposits', icon: CurrencyDollarIcon },
   { to: '/finance',       label: 'Finance',        icon: BanknotesIcon },
   { to: '/shift-summary', label: 'Shift Summary',  icon: ChartBarIcon },

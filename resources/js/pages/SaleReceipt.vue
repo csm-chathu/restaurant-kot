@@ -265,7 +265,7 @@ async function printReceipt(autoRedirect = false) {
   } finally {
     printing.value = false
   }
-  if (autoRedirect) router.push('/sales/new2')
+  if (autoRedirect) router.push('/sales/new')
 }
 
 

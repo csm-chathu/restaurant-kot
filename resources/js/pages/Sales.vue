@@ -198,8 +198,8 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const auth         = useAuthStore()
 const isCashier    = computed(() => auth.user?.role === 'cashier')
-const newBillRoute = localStorage.getItem('pos_bill_layout') === '2' ? '/sales/new2' : '/sales/new'
-const editDraftRoute = (id) => ({ name: localStorage.getItem('pos_bill_layout') === '2' ? 'sales.new2' : 'sales.new', query: { draft: id } })
+const newBillRoute = '/sales/new'
+const editDraftRoute = (id) => ({ name: 'sales.new', query: { draft: id } })
 
 const sales          = ref({ data: [] })
 const search         = ref('')

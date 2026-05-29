@@ -103,7 +103,7 @@
       </header>
 
       <!-- Page -->
-      <main :class="['sales.new', 'sales.new2'].includes(route.name) ? 'flex-1 overflow-hidden' : 'flex-1 overflow-auto p-6'">
+      <main :class="route.name === 'sales.new' ? 'flex-1 overflow-hidden' : 'flex-1 overflow-auto p-6'">
         <router-view />
       </main>
     </div>
@@ -188,7 +188,6 @@ const pageTitles = {
   suppliers:     'Suppliers',
   sales:         'POS Billing',
   'sales.new':   'New Bill',
-  'sales.new2':  'New Bill',
   'sales.edit':  'Edit Draft Bill',
   'sales.receipt': 'Bill Receipt',
   purchases:     'Purchase Orders',

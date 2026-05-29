@@ -85,8 +85,7 @@
         <table class="w-full min-w-[700px]">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="table-th w-36">Invoice</th>
-              <th class="table-th w-32">Customer</th>
+              <th class="table-th w-32">Table</th>
               <th class="table-th w-28">Date</th>
               <th class="table-th w-36 text-right">Total</th>
               <th class="table-th w-32">Payment</th>
@@ -96,7 +95,7 @@
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="loading">
-              <td colspan="7" class="table-td text-center py-10 text-gray-400">
+              <td colspan="6" class="table-td text-center py-10 text-gray-400">
                 <div class="flex items-center justify-center gap-2">
                   <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
                 </div>
@@ -106,12 +105,8 @@
               <tr v-for="s in sales.data" :key="s.id"
                 class="hover:bg-amber-50/40 transition-colors cursor-default group">
                 <td class="table-td">
-                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                    {{ s.invoice_number }}
-                  </span>
-                </td>
-                <td class="table-td">
-                  <p class="text-sm font-medium text-gray-800 truncate max-w-[120px]">{{ s.customer?.name ?? 'Walk-in' }}</p>
+                  <span v-if="s.table?.name" class="text-sm font-medium text-gray-800">{{ s.table.name }}</span>
+                  <span v-else class="text-xs text-gray-400">—</span>
                 </td>
                 <td class="table-td text-xs text-gray-500">
                   <div>{{ formatDate(s.sold_at) }}</div>
@@ -136,7 +131,7 @@
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200">
                       <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
                     </router-link>
-                    <router-link :to="`/sales/${s.id}`"
+                    <router-link v-if="s.payment_status !== 'pending'" :to="`/sales/${s.id}`"
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                       <PrinterIcon class="w-3.5 h-3.5" /> Receipt
                     </router-link>
@@ -148,7 +143,7 @@
                 </td>
               </tr>
               <tr v-if="!sales.data?.length">
-                <td colspan="7" class="table-td text-center py-12">
+                <td colspan="6" class="table-td text-center py-12">
                   <div class="flex flex-col items-center gap-2 text-gray-400">
                     <ReceiptPercentIcon class="w-10 h-10 opacity-30" />
                     <span>No sales found</span>

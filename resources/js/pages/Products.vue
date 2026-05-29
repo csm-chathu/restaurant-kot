@@ -67,7 +67,7 @@
               <td class="table-td font-semibold text-gold-700">{{ Number(p.selling_price).toLocaleString() }}</td>
               <td class="table-td">
                 <span v-if="p.bottle_deposit_required" class="text-amber-700 font-medium">
-                  LKR {{ Number(p.bottle_deposit_amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }) }}
+                  {{ Number(p.bottle_deposit_amount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }) }}
                 </span>
                 <span v-else class="text-gray-400">—</span>
               </td>

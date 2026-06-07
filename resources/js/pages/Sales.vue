@@ -105,7 +105,7 @@
               <tr v-for="s in sales.data" :key="s.id"
                 class="hover:bg-amber-50/40 transition-colors cursor-default group">
                 <td class="table-td">
-                  <span v-if="s.table?.name" class="text-sm font-medium text-gray-800">{{ s.table.name }}</span>
+                  <span v-if="s.table_number" class="text-sm font-medium text-gray-800">{{ s.table_number }}</span>
                   <span v-else class="text-xs text-gray-400">—</span>
                 </td>
                 <td class="table-td text-xs text-gray-500">
@@ -328,5 +328,5 @@ async function doDelete() {
   fetchData()
 }
 
-onMounted(() => setQuick('week'))
+onMounted(() => setQuick('today'))
 </script>

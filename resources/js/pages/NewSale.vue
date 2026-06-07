@@ -193,6 +193,13 @@
 
         <!-- Bill items (scrollable) -->
         <div class="flex-1 overflow-y-auto bg-white">
+          <div v-if="form.items.some(i => i.product_id)" class="flex justify-end px-3 py-1.5 border-b border-gray-100">
+            <button @click="clearCart" type="button"
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors border border-red-200">
+              <TrashIcon class="w-3.5 h-3.5" />
+              Clear Cart <kbd class="ml-1 text-[10px] opacity-60">Del</kbd>
+            </button>
+          </div>
           <div v-if="!form.items.length" class="flex flex-col items-center justify-center py-12 text-gray-400">
             <ShoppingCartIcon class="w-10 h-10 opacity-20 mb-2" />
             <p class="text-sm">Tap products to add</p>
@@ -700,7 +707,7 @@ import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } 
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import {
-  ArrowLeftIcon, PlusIcon, XMarkIcon,
+  ArrowLeftIcon, PlusIcon, XMarkIcon, TrashIcon,
   ShoppingCartIcon, CheckCircleIcon, ArrowPathIcon,
   ExclamationTriangleIcon, QrCodeIcon, MagnifyingGlassIcon, ShoppingBagIcon,
   QuestionMarkCircleIcon,
@@ -938,6 +945,7 @@ function newItem() {
 
 function addItem()      { form.items.push(newItem()) }
 function removeItem(i)  { form.items.splice(i, 1); recalc() }
+function clearCart()    { if (form.items.some(i => i.product_id)) { form.items = []; recalc() } }
 
 function recalcItem(item) {
   const effectiveUnitPrice = getEffectiveUnitPrice(item)
@@ -1266,6 +1274,13 @@ function handleKeydown(e) {
     if (scannerOpen.value)     { closeScanner(); return }
     if (showKbHelp.value)      { showKbHelp.value = false; return }
     document.activeElement?.blur()
+    return
+  }
+
+  // ── Delete: clear cart (only when not typing in an input) ──
+  if (e.key === 'Delete' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+    e.preventDefault()
+    clearCart()
     return
   }
 

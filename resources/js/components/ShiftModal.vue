@@ -2,10 +2,14 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col">
       <div class="flex items-center justify-between px-6 py-4 border-b">
-        <h3 class="text-lg font-semibold text-gray-800">
-          {{ currentShift ? 'Close Cashier Shift' : 'Open Cashier Shift' }}
-        </h3>
-        <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">✕</button>
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800">
+            {{ currentShift ? 'Close Cashier Shift' : 'Open Cashier Shift' }}
+          </h3>
+          <p v-if="stale" class="text-xs text-amber-600 mt-0.5">Your previous shift was not closed. Please close it to continue.</p>
+          <p v-else-if="required && !currentShift" class="text-xs text-red-500 mt-0.5">You must open a shift before you can start billing.</p>
+        </div>
+        <button v-if="!required" @click="$emit('close')" class="text-gray-400 hover:text-gray-600">✕</button>
       </div>
 
       <!-- OPEN SHIFT FORM -->
@@ -118,7 +122,7 @@
       </div>
 
       <div class="flex justify-end gap-3 px-6 py-4 border-t">
-        <button v-if="!closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
+        <button v-if="!closeSummary && !required" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
         <button v-if="closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Done</button>
         <button v-if="!closeSummary" @click="submit" :disabled="saving" class="btn-primary">
           {{ saving ? 'Please wait…' : (currentShift ? 'Close Shift & Print' : 'Open Shift') }}
@@ -236,7 +240,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 
-const props = defineProps({ currentShift: Object })
+const props = defineProps({ currentShift: Object, required: Boolean, stale: Boolean })
 const emit  = defineEmits(['close', 'shifted'])
 
 const openingCash     = ref(0)

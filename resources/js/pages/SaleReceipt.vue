@@ -88,6 +88,7 @@
         <div style="font-size:10px;">
           <!-- Column headers -->
           <div style="display:flex; font-weight:bold; border-bottom:1px solid #333; padding-bottom:3px; margin-bottom:3px;">
+            <span style="width:16px;">#</span>
             <span style="flex:1;">Item</span>
             <span style="width:28px; text-align:center;">Qty</span>
             <span style="width:54px; text-align:right;">Price</span>
@@ -95,8 +96,9 @@
           </div>
 
           <!-- Each item -->
-          <div v-for="item in sale.items" :key="item.id" style="margin-bottom:5px;">
+          <div v-for="(item, idx) in sale.items" :key="item.id" style="margin-bottom:5px;">
             <div style="display:flex; align-items:baseline;">
+              <span style="width:16px; color:#555;">{{ idx + 1 }}.</span>
               <span style="flex:1; font-weight:bold; word-break:break-word; padding-right:4px;">
                 {{ item.product?.name ?? 'Unknown' }}
               </span>

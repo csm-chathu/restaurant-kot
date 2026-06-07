@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-screen bg-gray-100 overflow-hidden">
     <!-- Sidebar -->
-    <aside :class="collapsed ? 'w-16' : 'w-64'" class="bg-gray-900 text-white flex flex-col shrink-0 transition-all duration-200">
+    <aside :class="sidebarHidden ? 'w-0 overflow-hidden' : collapsed ? 'w-16' : 'w-64'" class="bg-gray-900 text-white flex flex-col shrink-0 transition-all duration-200">
       <!-- Logo -->
       <div class="flex items-center gap-3 px-3 py-5 border-b border-gray-800 min-h-[72px]">
         <img v-if="restaurant.logo_url" :src="restaurant.logo_url" alt="Restaurant logo" class="w-10 h-10 rounded-lg object-cover border border-gray-700 shrink-0" />
@@ -78,8 +78,21 @@
     <div class="flex-1 flex flex-col min-h-0 min-w-0">
       <!-- Top bar -->
       <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
+        <div class="flex items-center gap-3">
+          <router-link v-if="sidebarHidden" to="/" title="Dashboard"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition-colors">
+            <HomeIcon class="w-4 h-4" />
+            Home
+          </router-link>
+          <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
+        </div>
         <div class="flex items-center gap-3 text-sm text-gray-500">
+          <button @click="toggleSidebarHidden"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors">
+            <ArrowsPointingOutIcon v-if="!sidebarHidden" class="w-3.5 h-3.5" />
+            <ArrowsPointingInIcon v-else class="w-3.5 h-3.5" />
+            {{ sidebarHidden ? 'Exit Full Screen' : 'Full Screen' }}
+          </button>
           <span>{{ currentDate }}</span>
           <button @click="openShiftModal"
             :class="currentShift
@@ -99,6 +112,10 @@
             <span class="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold leading-none">?</span>
             Getting Started
           </button>
+          <button v-if="sidebarHidden" @click="doLogout" title="Logout"
+            class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+            <ArrowRightOnRectangleIcon class="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -110,7 +127,7 @@
   </div>
 
   <GettingStarted v-model="showGuide" />
-  <ShiftModal v-if="showShiftModal" :current-shift="currentShift" @close="showShiftModal = false" @shifted="onShifted" />
+  <ShiftModal v-if="showShiftModal" :current-shift="currentShift" :required="shiftRequired || shiftStale" :stale="shiftStale" @close="showShiftModal = false" @shifted="onShifted" />
   <CashOutModal v-if="showCashOutModal" @close="showCashOutModal = false" @saved="showCashOutModal = false" />
 </template>
 
@@ -129,21 +146,30 @@ import {
   UserGroupIcon, ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon, CurrencyDollarIcon, FireIcon, TableCellsIcon, ChartBarIcon, Cog6ToothIcon, BanknotesIcon,
   ChevronDoubleLeftIcon, ChevronDoubleRightIcon,
+  ArrowsPointingOutIcon, ArrowsPointingInIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth      = useAuthStore()
 const router    = useRouter()
 const route     = useRoute()
 const showGuide      = ref(false)
-const showShiftModal = ref(false)
+const showShiftModal  = ref(false)
+const shiftRequired   = ref(false)
+const shiftStale      = ref(false)
 const showCashOutModal = ref(false)
-const currentShift   = ref(null)
+const currentShift    = ref(null)
 const restaurant = ref({ name: 'Liquor Shop + Bar', logo_url: '', address: '' })
 
 const collapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
+const sidebarHidden = ref(false)
+
 function toggleCollapse() {
   collapsed.value = !collapsed.value
   localStorage.setItem('sidebar_collapsed', collapsed.value)
+}
+
+function toggleSidebarHidden() {
+  sidebarHidden.value = !sidebarHidden.value
 }
 
 
@@ -251,8 +277,31 @@ async function loadCurrentShift() {
 }
 
 function onShifted(shift) {
+  const wasStale = shiftStale.value
   currentShift.value = shift
+  shiftRequired.value = false
+  shiftStale.value = false
+  // After closing a stale shift, immediately prompt to open today's shift
+  if (!shift && wasStale && auth.user?.role === 'cashier') {
+    shiftRequired.value = true
+    showShiftModal.value = true
+  }
 }
 
-onMounted(() => { loadRestaurant(); loadCurrentShift() })
+onMounted(async () => {
+  loadRestaurant()
+  await loadCurrentShift()
+  if (auth.user?.role === 'cashier') {
+    if (!currentShift.value) {
+      shiftRequired.value = true
+      showShiftModal.value = true
+    } else {
+      const shiftDay = new Date(currentShift.value.opened_at).toDateString()
+      if (shiftDay !== new Date().toDateString()) {
+        shiftStale.value = true
+        showShiftModal.value = true
+      }
+    }
+  }
+})
 </script>

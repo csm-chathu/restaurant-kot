@@ -1,6 +1,26 @@
 <template>
   <div class="space-y-5">
 
+    <!-- Cashier quick actions -->
+    <div v-if="isCashier" class="flex gap-3 justify-end">
+      <router-link to="/sales/new"
+        class="flex items-center gap-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2.5 shadow-sm transition-colors">
+        <ShoppingCartIcon class="w-5 h-5 shrink-0" />
+        <div>
+          <p class="text-sm font-semibold leading-tight">POS Billing</p>
+          <p class="text-xs opacity-75">Start a new bill</p>
+        </div>
+      </router-link>
+      <router-link to="/open-bottles"
+        class="flex items-center gap-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2.5 shadow-sm transition-colors">
+        <SparklesIcon class="w-5 h-5 shrink-0" />
+        <div>
+          <p class="text-sm font-semibold leading-tight">Open Bottles</p>
+          <p class="text-xs opacity-75">Track open bottle pours</p>
+        </div>
+      </router-link>
+    </div>
+
     <!-- KPI cards -->
     <div v-if="!isCashier" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
       <div v-for="card in kpiCards" :key="card.label"
@@ -197,6 +217,7 @@ import { ref, computed, defineComponent, h } from 'vue'
 import axios from 'axios'
 import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { ShoppingCartIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import { Line, Bar, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,

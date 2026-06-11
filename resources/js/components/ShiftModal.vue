@@ -118,14 +118,24 @@
           </div>
         </template>
 
+        <!-- Draft bills warning -->
+        <div v-if="currentShift && !closeSummary && draftCount > 0"
+             class="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+          <span class="text-amber-500 text-base leading-none mt-0.5">⚠</span>
+          <div>
+            <p class="font-semibold text-amber-800">{{ draftCount }} open draft bill{{ draftCount > 1 ? 's' : '' }} today</p>
+            <p class="text-amber-700 mt-0.5">Please complete or discard all draft bills before closing the shift.</p>
+          </div>
+        </div>
+
         <p v-if="error" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ error }}</p>
       </div>
 
       <div class="flex justify-end gap-3 px-6 py-4 border-t">
         <button v-if="!closeSummary && !required" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
         <button v-if="closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Done</button>
-        <button v-if="!closeSummary" @click="submit" :disabled="saving" class="btn-primary">
-          {{ saving ? 'Please wait…' : (currentShift ? 'Close Shift & Print' : 'Open Shift') }}
+        <button v-if="!closeSummary" @click="submit" :disabled="saving || (currentShift && (checkingDrafts || draftCount > 0))" class="btn-primary">
+          {{ saving ? 'Please wait…' : checkingDrafts ? 'Checking drafts…' : (currentShift ? 'Close Shift & Print' : 'Open Shift') }}
         </button>
       </div>
     </div>
@@ -252,6 +262,8 @@ const error           = ref('')
 const closeSummary    = ref(null)
 const restaurant      = ref({ name: '', address: '' })
 const suggestedOpening = ref(0)
+const draftCount      = ref(0)
+const checkingDrafts  = ref(false)
 
 const leftoverAmount = computed(() => Math.max(0, closingCash.value - handoverAmount.value))
 
@@ -268,6 +280,16 @@ onMounted(async () => {
       suggestedOpening.value = data.suggested_opening ?? 0
       if (suggestedOpening.value > 0) openingCash.value = suggestedOpening.value
     } catch {}
+  } else {
+    checkingDrafts.value = true
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      const { data } = await axios.get('/api/sales', { params: { status: 'draft', per_page: 1, date_from: today, date_to: today } })
+      draftCount.value = data.total ?? 0
+    } catch {}
+    finally {
+      checkingDrafts.value = false
+    }
   }
 })
 

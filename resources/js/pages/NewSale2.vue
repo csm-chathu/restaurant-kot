@@ -1367,7 +1367,8 @@ async function submit(billStatus) {
     } else {
       // Stay on POS — update draft state so further saves update the same draft
       activeDraftId.value = saleId
-      const { data: draftsData } = await axios.get('/api/sales', { params: { status: 'draft', per_page: 50 } })
+      const today = new Date().toISOString().slice(0, 10)
+      const { data: draftsData } = await axios.get('/api/sales', { params: { status: 'draft', per_page: 50, date_from: today, date_to: today } })
       draftBills.value = draftsData.data
       draftSaved.value = true
       setTimeout(() => { draftSaved.value = false }, 2000)
@@ -1483,7 +1484,7 @@ onMounted(async () => {
     axios.get('/api/customers/all'),
     axios.get('/api/tax-settings'),
     axios.get('/api/tables/all'),
-    axios.get('/api/sales', { params: { status: 'draft', per_page: 50 } }),
+    axios.get('/api/sales', { params: { status: 'draft', per_page: 50, date_from: new Date().toISOString().slice(0, 10), date_to: new Date().toISOString().slice(0, 10) } }),
   ])
   products.value        = p.data.data
   customers.value       = c.data

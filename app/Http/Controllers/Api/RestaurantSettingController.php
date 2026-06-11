@@ -21,6 +21,7 @@ class RestaurantSettingController extends Controller
             'city' => $branch->city,
             'country' => $branch->country,
             'logo_url' => $branch->logo_url,
+            'shop_type' => $branch->shop_type ?? 'restaurant',
         ]);
     }
 
@@ -37,6 +38,7 @@ class RestaurantSettingController extends Controller
             'city' => 'nullable|string|max:100',
             'country' => 'nullable|string|max:100',
             'logo' => 'nullable|image|max:2048',
+            'shop_type' => 'nullable|in:restaurant,hotel,retail,cycle',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -60,6 +62,7 @@ class RestaurantSettingController extends Controller
                 'city' => $branch->city,
                 'country' => $branch->country,
                 'logo_url' => $branch->logo_url,
+                'shop_type' => $branch->shop_type ?? 'restaurant',
             ],
         ]);
     }

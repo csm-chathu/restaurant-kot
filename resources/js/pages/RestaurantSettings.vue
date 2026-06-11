@@ -78,6 +78,15 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <label class="form-label">Shop Type *</label>
+          <select v-model="form.shop_type" class="form-input">
+            <option value="restaurant">Restaurant</option>
+            <option value="hotel">Hotel</option>
+            <option value="retail">Retail</option>
+            <option value="cycle">Cycle</option>
+          </select>
+        </div>
+        <div>
           <label class="form-label">Restaurant Name *</label>
           <input v-model="form.name" class="form-input" maxlength="120" required />
         </div>
@@ -132,6 +141,7 @@ const form = reactive({
   address: '',
   city: '',
   country: '',
+  shop_type: 'restaurant',
 })
 
 const branches = ref([])
@@ -175,6 +185,7 @@ async function load() {
   form.address = data.address ?? ''
   form.city = data.city ?? ''
   form.country = data.country ?? ''
+  form.shop_type = data.shop_type ?? 'restaurant'
   branchCode.value = data.code ?? ''
   currentLogo.value = data.logo_url ?? ''
   previewLogo.value = ''
@@ -201,6 +212,7 @@ async function save() {
     payload.append('address', form.address || '')
     payload.append('city', form.city || '')
     payload.append('country', form.country || '')
+    payload.append('shop_type', form.shop_type || 'restaurant')
     if (canSelectBranch.value && selectedBranchId.value) payload.append('branch_id', selectedBranchId.value)
     if (logoFile.value) payload.append('logo', logoFile.value)
 

@@ -14,7 +14,7 @@ class TableController extends Controller
         $tables = Table::when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where('table_number', 'like', "%$s%"))
             ->when(request('status'), fn($q, $s) => $q->where('status', $s))
-            ->orderBy('table_number')
+            ->orderByRaw('CAST(REGEXP_REPLACE(table_number, "[^0-9]", "") AS UNSIGNED), table_number')
             ->paginate(request('per_page', 50));
         return response()->json($tables);
     }
@@ -24,7 +24,7 @@ class TableController extends Controller
         $user = request()->user();
         $tables = Table::when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->where('status', '!=', 'maintenance')
-            ->orderBy('table_number')
+            ->orderByRaw('CAST(REGEXP_REPLACE(table_number, "[^0-9]", "") AS UNSIGNED), table_number')
             ->get();
         return response()->json($tables);
     }

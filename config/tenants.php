@@ -18,7 +18,7 @@
 return [
     'localhost' => 'restaurant',
     'restaurant.lumac.lk' => 'lmucunal_restaurant',
-    'daily-dose.lumac.lk' => 'lmucunal_daily-dose',
+    'demo-res.lumac.lk' => 'lmucunal_res_demo',
     // 'shop1.yourdomain.com' => 'lmuc_shop1',
     // 'shop2.yourdomain.com' => 'lmuc_shop2',
 ];

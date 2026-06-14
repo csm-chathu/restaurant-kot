@@ -26,17 +26,28 @@ class SaleController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $sales = Sale::with(['customer:id,name', 'user:id,name', 'payments:id,sale_id,payment_method,amount'])
-            ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+
+        $base = Sale::when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when($request->filled('search'), fn($q) => $q->where('invoice_number', 'like', '%' . $request->string('search') . '%'))
             ->when($request->filled('customer_id'), fn($q) => $q->where('customer_id', $request->input('customer_id')))
             ->when($request->filled('status'), fn($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('payment_status'), fn($q) => $q->where('payment_status', $request->input('payment_status')))
             ->when($request->filled('date_from'), fn($q) => $q->whereDate('sold_at', '>=', $request->input('date_from')))
-            ->when($request->filled('date_to'), fn($q) => $q->whereDate('sold_at', '<=', $request->input('date_to')))
+            ->when($request->filled('date_to'), fn($q) => $q->whereDate('sold_at', '<=', $request->input('date_to')));
+
+        $summary = (clone $base)
+            ->where('status', 'completed')
+            ->selectRaw('payment_status, COUNT(*) as count, SUM(total) as total')
+            ->groupBy('payment_status')
+            ->get()
+            ->keyBy('payment_status');
+
+        $sales = (clone $base)
+            ->with(['customer:id,name', 'user:id,name', 'payments:id,sale_id,payment_method,amount'])
             ->latest('sold_at')
             ->paginate($request->integer('per_page', 20));
-        return response()->json($sales);
+
+        return response()->json(array_merge($sales->toArray(), ['summary' => $summary]));
     }
 
     public function store(Request $request)

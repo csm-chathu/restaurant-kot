@@ -42,21 +42,13 @@
     <!-- Summary cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="card flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-          <ReceiptPercentIcon class="w-5 h-5 text-blue-600" />
-        </div>
-        <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide">Total Sales</p>
-          <p class="text-2xl font-bold text-gray-800">{{ sales.total ?? 0 }}</p>
-        </div>
-      </div>
-      <div class="card flex items-center gap-4">
         <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
           <BanknotesIcon class="w-5 h-5 text-amber-600" />
         </div>
         <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide">Revenue</p>
-          <p class="text-xl font-bold text-amber-700">LKR {{ totalRevenue }}</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Total Revenue</p>
+          <p class="text-lg font-bold text-amber-700">LKR {{ lkr(summaryTotal) }}</p>
+          <p class="text-xs text-gray-400">{{ summaryTotalCount }} bill{{ summaryTotalCount !== 1 ? 's' : '' }}</p>
         </div>
       </div>
       <div class="card flex items-center gap-4">
@@ -65,16 +57,28 @@
         </div>
         <div>
           <p class="text-xs text-gray-500 uppercase tracking-wide">Paid</p>
-          <p class="text-2xl font-bold text-green-700">{{ paidCount }}</p>
+          <p class="text-lg font-bold text-green-700">LKR {{ lkr(summary.paid?.total ?? 0) }}</p>
+          <p class="text-xs text-gray-400">{{ summary.paid?.count ?? 0 }} bill{{ (summary.paid?.count ?? 0) !== 1 ? 's' : '' }}</p>
         </div>
       </div>
       <div class="card flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-          <ChartBarIcon class="w-5 h-5 text-purple-600" />
+        <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
+          <ReceiptPercentIcon class="w-5 h-5 text-yellow-600" />
         </div>
         <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wide">Avg Sale</p>
-          <p class="text-xl font-bold text-purple-700">LKR {{ avgSale }}</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Pending</p>
+          <p class="text-lg font-bold text-yellow-700">LKR {{ lkr(summary.pending?.total ?? 0) }}</p>
+          <p class="text-xs text-gray-400">{{ summary.pending?.count ?? 0 }} bill{{ (summary.pending?.count ?? 0) !== 1 ? 's' : '' }}</p>
+        </div>
+      </div>
+      <div class="card flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+          <ChartBarIcon class="w-5 h-5 text-blue-600" />
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide">Partial</p>
+          <p class="text-lg font-bold text-blue-700">LKR {{ lkr(summary.partial?.total ?? 0) }}</p>
+          <p class="text-xs text-gray-400">{{ summary.partial?.count ?? 0 }} bill{{ (summary.partial?.count ?? 0) !== 1 ? 's' : '' }}</p>
         </div>
       </div>
     </div>
@@ -197,6 +201,7 @@ const newBillRoute = '/sales/new'
 const editDraftRoute = (id) => ({ name: 'sales.new', query: { draft: id } })
 
 const sales          = ref({ data: [] })
+const summaryRaw     = ref({})
 const search         = ref('')
 const page           = ref(1)
 const dateFrom       = ref('')
@@ -248,6 +253,7 @@ async function fetchData() {
       },
     })
     sales.value = data
+    summaryRaw.value = data.summary ?? {}
   } finally { loading.value = false }
 }
 
@@ -256,16 +262,17 @@ function clearFilters() {
   page.value = 1; fetchData()
 }
 
-const totalRevenue = computed(() => {
-  const sum = (sales.value.data ?? []).reduce((acc, s) => acc + Number(s.total), 0)
-  return Number(sum).toLocaleString()
-})
-const paidCount = computed(() => (sales.value.data ?? []).filter(s => s.payment_status === 'paid').length)
-const avgSale = computed(() => {
-  const d = sales.value.data ?? []
-  if (!d.length) return '0'
-  return Number(d.reduce((a, s) => a + Number(s.total), 0) / d.length).toLocaleString('en-LK', { maximumFractionDigits: 0 })
-})
+function lkr(val) {
+  return Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const summary = computed(() => summaryRaw.value)
+const summaryTotal = computed(() =>
+  Object.values(summaryRaw.value).reduce((acc, s) => acc + Number(s.total ?? 0), 0)
+)
+const summaryTotalCount = computed(() =>
+  Object.values(summaryRaw.value).reduce((acc, s) => acc + Number(s.count ?? 0), 0)
+)
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-LK', { day: '2-digit', month: 'short', year: 'numeric' })

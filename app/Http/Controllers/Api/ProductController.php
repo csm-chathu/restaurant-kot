@@ -54,6 +54,7 @@ class ProductController extends Controller
             'supplier_id'             => 'nullable|exists:suppliers,id',
             'tax_setting_id'          => 'nullable|exists:tax_settings,id',
             'barcode'                 => 'nullable|string|max:100|unique:products,barcode',
+            'item_number'             => 'nullable|string|max:50',
             'image'                   => 'nullable|image|max:2048',
         ]);
 
@@ -102,6 +103,7 @@ class ProductController extends Controller
             'supplier_id'             => 'nullable|exists:suppliers,id',
             'tax_setting_id'          => 'nullable|exists:tax_settings,id',
             'barcode'                 => 'nullable|string|max:100|unique:products,barcode,' . $product->id,
+            'item_number'             => 'nullable|string|max:50',
             'image'                   => 'nullable|image|max:2048',
         ]);
 

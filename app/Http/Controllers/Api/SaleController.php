@@ -28,7 +28,13 @@ class SaleController extends Controller
         $user = $request->user();
 
         $base = Sale::when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
-            ->when($request->filled('search'), fn($q) => $q->where('invoice_number', 'like', '%' . $request->string('search') . '%'))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $term = $request->string('search')->toString();
+                $q->where(function ($sub) use ($term) {
+                    $sub->where('invoice_number', 'like', "%{$term}%")
+                        ->orWhereHas('items.product', fn($p) => $p->where('item_number', 'like', "%{$term}%"));
+                });
+            })
             ->when($request->filled('customer_id'), fn($q) => $q->where('customer_id', $request->input('customer_id')))
             ->when($request->filled('status'), fn($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('payment_status'), fn($q) => $q->where('payment_status', $request->input('payment_status')))

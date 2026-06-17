@@ -35,6 +35,7 @@
             <tr>
               <th class="table-th">Image</th>
               <th class="table-th">SKU</th>
+              <th class="table-th">#</th>
               <th class="table-th">Name</th>
               <th class="table-th">Brand</th>
               <th class="table-th">Category</th>
@@ -55,6 +56,7 @@
                 <div v-else class="w-10 h-10 rounded-md bg-gray-100 border border-gray-200"></div>
               </td>
               <td class="table-td font-mono text-xs">{{ p.sku }}</td>
+              <td class="table-td font-mono text-xs font-semibold text-amber-700">{{ p.item_number || '—' }}</td>
               <td class="table-td font-medium">{{ p.name }}</td>
               <td class="table-td text-gray-500">{{ p.brand || '—' }}</td>
               <td class="table-td text-gray-500">{{ p.category?.name }}</td>

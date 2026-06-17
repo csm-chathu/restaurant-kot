@@ -18,6 +18,10 @@
             <input :value="product.sku" readonly class="form-input font-mono bg-gray-50 text-gray-500 cursor-not-allowed" />
           </div>
           <div>
+            <label class="form-label">Item Number <span class="text-gray-400 font-normal">(optional — searchable in sales)</span></label>
+            <input v-model="form.item_number" class="form-input font-mono" placeholder="e.g. 001, A-12" maxlength="50" />
+          </div>
+          <div>
             <label class="form-label">Custom Barcode <span class="text-gray-400 font-normal">(optional override)</span></label>
             <input v-model="form.barcode" class="form-input font-mono" placeholder="Scan or type barcode — leave blank to use SKU" />
           </div>
@@ -194,7 +198,7 @@ const form = reactive({
   product_type: 'Liquor', brand: '', unit_type: '', base_unit: '', selling_variants: '',
   shot_variants: [],
   purchase_price: '', selling_price: '', stock_quantity: 0, min_stock_level: 5,
-  bottle_deposit_required: false, bottle_deposit_amount: 0, is_active: true, barcode: '',
+  bottle_deposit_required: false, bottle_deposit_amount: 0, is_active: true, barcode: '', item_number: '',
 })
 
 const saving = ref(false)

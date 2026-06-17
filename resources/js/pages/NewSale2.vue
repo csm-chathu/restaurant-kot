@@ -1234,7 +1234,8 @@ function processBarcode(code) {
   if (!normalized) return
   const product = products.value.find(p =>
     p.barcode?.toLowerCase() === normalized.toLowerCase() ||
-    p.sku?.toLowerCase() === normalized.toLowerCase()
+    p.sku?.toLowerCase() === normalized.toLowerCase() ||
+    (p.item_number && p.item_number.toLowerCase() === normalized.toLowerCase())
   )
   if (!product) {
     barcodeError.value = `"${normalized}" not found`

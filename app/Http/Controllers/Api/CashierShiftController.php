@@ -121,25 +121,49 @@ class CashierShiftController extends Controller
             $totalCashOuts = (float) $shift->cashOuts->sum('amount');
             $expectedCash  = (float) $shift->opening_cash + $cashSales - $totalCashOuts;
 
+            $categoryBreakdown = SaleItem::whereIn('sale_id', $saleIds)
+                ->join('products', 'sale_items.product_id', '=', 'products.id')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->select(
+                    DB::raw("COALESCE(categories.name, 'Uncategorized') as name"),
+                    DB::raw('SUM(sale_items.quantity) as qty'),
+                    DB::raw('SUM(sale_items.total) as total')
+                )
+                ->groupBy('categories.id', 'categories.name')
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn($r) => ['name' => $r->name, 'qty' => (int) $r->qty, 'total' => (float) $r->total]);
+
+            $paymentBreakdown = $payments->map(fn($v, $k) => ['method' => $k, 'total' => $v])->values();
+
+            $cashOutList = $shift->cashOuts->map(fn($co) => [
+                'reason' => $co->reason,
+                'amount' => (float) $co->amount,
+            ]);
+
             return [
-                'id'               => $shift->id,
-                'date'             => $shift->closed_at->toDateString(),
-                'cashier'          => $shift->user?->name ?? '—',
-                'opened_at'        => $shift->opened_at,
-                'closed_at'        => $shift->closed_at,
-                'opening_cash'     => (float) $shift->opening_cash,
-                'closing_cash'     => (float) $shift->closing_cash,
-                'handover_amount'  => (float) ($shift->handover_amount ?? $shift->closing_cash),
-                'leftover_amount'  => (float) ($shift->leftover_amount ?? 0),
-                'total_sales'      => $saleIds->count(),
-                'total_revenue'    => (float) Sale::whereIn('id', $saleIds)->sum('total'),
-                'cash_sales'       => $cashSales,
-                'card_sales'       => $cardSales,
-                'other_sales'      => $otherSales,
-                'total_cash_outs'  => $totalCashOuts,
-                'expected_cash'    => $expectedCash,
-                'variance'         => (float) $shift->closing_cash - $expectedCash,
-                'notes'            => $shift->notes,
+                'id'                 => $shift->id,
+                'date'               => $shift->closed_at->toDateString(),
+                'cashier'            => $shift->user?->name ?? '—',
+                'opened_at'          => $shift->opened_at,
+                'closed_at'          => $shift->closed_at,
+                'opening_cash'       => (float) $shift->opening_cash,
+                'closing_cash'       => (float) $shift->closing_cash,
+                'handover_amount'    => (float) ($shift->handover_amount ?? $shift->closing_cash),
+                'leftover_amount'    => (float) ($shift->leftover_amount ?? 0),
+                'total_sales'        => $saleIds->count(),
+                'total_items'        => (int) SaleItem::whereIn('sale_id', $saleIds)->sum('quantity'),
+                'total_revenue'      => (float) Sale::whereIn('id', $saleIds)->sum('total'),
+                'cash_sales'         => $cashSales,
+                'card_sales'         => $cardSales,
+                'other_sales'        => $otherSales,
+                'total_cash_outs'    => $totalCashOuts,
+                'expected_cash'      => $expectedCash,
+                'variance'           => (float) $shift->closing_cash - $expectedCash,
+                'notes'              => $shift->notes,
+                'category_breakdown' => $categoryBreakdown,
+                'payment_breakdown'  => $paymentBreakdown,
+                'cash_outs'          => $cashOutList,
             ];
         });
 

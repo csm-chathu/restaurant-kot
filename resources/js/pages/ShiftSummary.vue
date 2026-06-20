@@ -20,7 +20,10 @@
       </div>
       <div>
         <label class="form-label">Cashier</label>
-        <input v-model="cashierFilter" type="text" class="form-input w-44" placeholder="All cashiers" @keyup.enter="load" />
+        <select v-model="cashierFilter" class="form-input w-44" @change="load">
+          <option value="">All cashiers</option>
+          <option v-for="c in cashiers" :key="c.id" :value="c.name">{{ c.name }}</option>
+        </select>
       </div>
       <button @click="load" :disabled="loading" class="btn-primary text-sm">
         {{ loading ? 'Loading…' : 'Generate' }}
@@ -286,6 +289,7 @@ const cashierFilter  = ref('')
 const loading        = ref(false)
 const shifts   = ref([])
 const totals   = ref(null)
+const cashiers = ref([])
 const expanded  = reactive({})
 const itemModal = reactive({ show: false, cashier: '', opened_at: null, closed_at: null, items: [] })
 
@@ -373,7 +377,14 @@ async function load() {
 
 function print() { window.print() }
 
-onMounted(load)
+async function loadCashiers() {
+  try {
+    const { data } = await axios.get('/api/users', { params: { role: 'cashier', per_page: 200 } })
+    cashiers.value = data.data ?? data
+  } catch {}
+}
+
+onMounted(() => { loadCashiers(); load() })
 </script>
 
 <style>

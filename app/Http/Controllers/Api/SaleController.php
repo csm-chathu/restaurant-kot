@@ -27,7 +27,25 @@ class SaleController extends Controller
     {
         $user = $request->user();
 
+        $activeShift = null;
+        if ($user->role === 'cashier') {
+            $activeShift = \App\Models\CashierShift::where('user_id', $user->id)
+                ->where('branch_id', $user->branch_id)
+                ->where('status', 'open')
+                ->latest('opened_at')
+                ->first();
+
+            if (!$activeShift) {
+                return response()->json([
+                    'data' => [], 'total' => 0, 'per_page' => 20,
+                    'current_page' => 1, 'last_page' => 1, 'from' => null, 'to' => null,
+                    'summary' => [], 'active_shift' => null, 'no_shift' => true,
+                ]);
+            }
+        }
+
         $base = Sale::when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
+            ->when($activeShift, fn($q) => $q->where('sold_at', '>=', $activeShift->opened_at))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = $request->string('search')->toString();
                 $q->where(function ($sub) use ($term) {
@@ -53,7 +71,10 @@ class SaleController extends Controller
             ->latest('sold_at')
             ->paginate($request->integer('per_page', 20));
 
-        return response()->json(array_merge($sales->toArray(), ['summary' => $summary]));
+        return response()->json(array_merge($sales->toArray(), [
+            'summary'      => $summary,
+            'active_shift' => $activeShift ? ['opened_at' => $activeShift->opened_at] : null,
+        ]));
     }
 
     public function store(Request $request)

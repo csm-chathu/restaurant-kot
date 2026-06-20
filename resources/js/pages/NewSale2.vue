@@ -249,7 +249,7 @@
               <div
                 v-for="(item, i) in form.items"
                 :key="i"
-                class="px-3 py-3 hover:bg-gray-50 transition-colors"
+                class="px-3 py-1.5 hover:bg-gray-50 transition-colors"
               >
                 <!-- If no product selected yet (manual line) -->
                 <div v-if="!item.product_id" class="space-y-1.5">
@@ -277,11 +277,21 @@
                       <p class="text-sm font-bold text-gray-800 leading-tight truncate">
                         {{ item.product_ref?.name || 'Product' }}
                       </p>
-                      <p class="text-xs text-amber-600 font-semibold mt-0.5">
-                        LKR {{ lkr(getEffectiveUnitPrice(item)) }}
-                        <span v-if="item.selected_shot_variant" class="text-purple-500 font-normal"> · {{ item.selected_shot_variant.name }}</span>
-                        <span v-else-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400 font-normal"> · {{ item.serving_ml }}ml</span>
-                      </p>
+                      <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <p class="text-xs text-amber-600 font-semibold">
+                          LKR {{ lkr(getEffectiveUnitPrice(item)) }}
+                          <span v-if="item.selected_shot_variant" class="text-purple-500 font-normal"> · {{ item.selected_shot_variant.name }}</span>
+                          <span v-else-if="item.serving_ml > 0 && !item.open_bottle_id" class="text-gray-400 font-normal"> · {{ item.serving_ml }}ml</span>
+                        </p>
+                        <div class="flex items-center gap-1">
+                          <span class="text-xs text-gray-400">Disc:</span>
+                          <input v-model.number="item.discount" type="number" min="0" class="w-14 px-1.5 py-0.5 rounded border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
+                        </div>
+                        <label v-if="item.product_ref?.bottle_deposit_required" class="flex items-center gap-1 text-xs text-gray-500 cursor-pointer whitespace-nowrap">
+                          <input type="checkbox" v-model="item.empty_bottle_returned" @change="recalcItem(item)" class="rounded text-amber-600" />
+                          Bottle returned
+                        </label>
+                      </div>
                     </div>
 
                     <!-- Qty control - larger touch targets -->
@@ -301,22 +311,17 @@
 
                     <!-- Line total -->
                     <div class="shrink-0 w-20 text-right">
-                      <p class="text-sm font-bold text-gray-900">LKR {{ lkr(item._lineTotal) }}</p>
+                      <p class="text-sm font-bold text-gray-900">{{ lkr(item._lineTotal) }}</p>
                     </div>
 
-                    <button @click="removeItem(i)" class="shrink-0 w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <XMarkIcon class="w-4 h-4" />
+                    <button @click="removeItem(i)" class="shrink-0 w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <TrashIcon class="w-4 h-4" />
                     </button>
                   </div>
 
                   <!-- Extras row -->
                   <div class="mt-2 space-y-1.5">
-                    <!-- Item discount -->
                     <div class="flex flex-wrap gap-x-4 gap-y-1.5 items-center">
-                      <div class="flex items-center gap-1.5">
-                        <span class="text-xs text-gray-400">Disc:</span>
-                        <input v-model.number="item.discount" type="number" min="0" class="w-16 px-2 py-1 rounded-lg border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
-                      </div>
 
                       <!-- Opened bottle badge -->
                       <span v-if="item.open_bottle_id" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
@@ -359,13 +364,6 @@
                         >Sell opened bottle</button>
                       </template>
 
-                      <!-- Bottle deposit -->
-                      <div v-if="item.product_ref?.bottle_deposit_required" class="flex items-center gap-1.5">
-                        <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                          <input type="checkbox" v-model="item.empty_bottle_returned" @change="recalcItem(item)" class="rounded text-amber-600" />
-                          Bottle returned
-                        </label>
-                      </div>
                     </div>
 
                   </div>
@@ -765,7 +763,7 @@ import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } 
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import {
-  ArrowLeftIcon, PlusIcon, XMarkIcon,
+  ArrowLeftIcon, PlusIcon, XMarkIcon, TrashIcon,
   ShoppingCartIcon, CheckCircleIcon, ArrowPathIcon,
   ExclamationTriangleIcon, QrCodeIcon, MagnifyingGlassIcon, ShoppingBagIcon,
   QuestionMarkCircleIcon, TableCellsIcon, ChevronDownIcon, PrinterIcon,

@@ -93,21 +93,33 @@ class CashierShiftController extends Controller
 
     public function report(Request $request)
     {
-        $from = Carbon::parse($request->input('from', today()))->startOfDay();
-        $to   = Carbon::parse($request->input('to',   today()))->endOfDay();
+        $date = Carbon::parse($request->input('date', today()));
+        $from = $date->copy()->startOfDay();
+        $to   = $date->copy()->endOfDay();
 
         $shifts = CashierShift::with(['user:id,name', 'cashOuts'])
-            ->where('status', 'closed')
             ->when(!$request->user()->isAdmin(), fn($q) => $q->where('branch_id', $request->user()->branch_id))
-            ->whereBetween('closed_at', [$from, $to])
-            ->orderBy('closed_at')
+            ->where(function ($q) use ($from, $to) {
+                // closed shifts whose closed_at falls on the selected date
+                $q->where('status', 'closed')->whereBetween('closed_at', [$from, $to])
+                // OR open shifts that were opened on the selected date
+                  ->orWhere('status', 'open')->whereBetween('opened_at', [$from, $to]);
+            })
+            ->when($request->filled('cashier'), fn($q) => $q->whereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->input('cashier') . '%')))
+            ->orderBy('opened_at')
             ->get();
 
         $result = $shifts->map(function (CashierShift $shift) {
-            $saleIds = Sale::where('branch_id', $shift->branch_id)
+            $shiftEnd = $shift->closed_at ?? now();
+
+            $salesInShift = Sale::where('branch_id', $shift->branch_id)
                 ->where('status', 'completed')
-                ->whereBetween('sold_at', [$shift->opened_at, $shift->closed_at])
-                ->pluck('id');
+                ->whereBetween('sold_at', [$shift->opened_at, $shiftEnd])
+                ->select('id', 'invoice_number', 'total', 'payment_status', 'sold_at')
+                ->orderBy('sold_at')
+                ->get();
+
+            $saleIds = $salesInShift->pluck('id');
 
             $payments = SalePayment::whereIn('sale_id', $saleIds)
                 ->select('payment_method', DB::raw('SUM(amount) as total'))
@@ -141,9 +153,31 @@ class CashierShiftController extends Controller
                 'amount' => (float) $co->amount,
             ]);
 
+            $itemBreakdown = SaleItem::whereIn('sale_id', $saleIds)
+                ->join('products', 'sale_items.product_id', '=', 'products.id')
+                ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+                ->select(
+                    'products.name as product_name',
+                    DB::raw("COALESCE(categories.name, 'Uncategorized') as category_name"),
+                    DB::raw('SUM(sale_items.quantity) as qty'),
+                    DB::raw('AVG(sale_items.unit_price) as avg_price'),
+                    DB::raw('SUM(sale_items.total) as total')
+                )
+                ->groupBy('products.id', 'products.name', 'categories.name')
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn($r) => [
+                    'product_name'  => $r->product_name,
+                    'category_name' => $r->category_name,
+                    'qty'           => (int) $r->qty,
+                    'avg_price'     => round((float) $r->avg_price, 2),
+                    'total'         => (float) $r->total,
+                ]);
+
             return [
                 'id'                 => $shift->id,
-                'date'               => $shift->closed_at->toDateString(),
+                'status'             => $shift->status,
+                'date'               => ($shift->closed_at ?? $shift->opened_at)->toDateString(),
                 'cashier'            => $shift->user?->name ?? '—',
                 'opened_at'          => $shift->opened_at,
                 'closed_at'          => $shift->closed_at,
@@ -159,11 +193,19 @@ class CashierShiftController extends Controller
                 'other_sales'        => $otherSales,
                 'total_cash_outs'    => $totalCashOuts,
                 'expected_cash'      => $expectedCash,
-                'variance'           => (float) $shift->closing_cash - $expectedCash,
+                'variance'           => $shift->closing_cash !== null ? (float) $shift->closing_cash - $expectedCash : null,
                 'notes'              => $shift->notes,
                 'category_breakdown' => $categoryBreakdown,
                 'payment_breakdown'  => $paymentBreakdown,
                 'cash_outs'          => $cashOutList,
+                'item_breakdown'     => $itemBreakdown,
+                'invoices'           => $salesInShift->map(fn($s) => [
+                    'id'             => $s->id,
+                    'invoice_number' => $s->invoice_number,
+                    'total'          => (float) $s->total,
+                    'payment_status' => $s->payment_status,
+                    'sold_at'        => $s->sold_at,
+                ]),
             ];
         });
 

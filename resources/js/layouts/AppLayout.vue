@@ -99,8 +99,11 @@
               ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
               : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors">
-            <span :class="currentShift ? 'bg-green-500' : 'bg-red-500'" class="w-2 h-2 rounded-full"></span>
-            {{ currentShift ? 'Shift Open' : 'Open Shift' }}
+            <span :class="currentShift ? 'bg-green-500 animate-pulse' : 'bg-red-500'" class="w-2 h-2 rounded-full"></span>
+            <span v-if="currentShift">
+              Shift · Since {{ new Date(currentShift.opened_at).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' }) }}
+            </span>
+            <span v-else>No Shift — Start Now</span>
           </button>
           <button v-if="currentShift" @click="showCashOutModal = true"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 text-xs font-semibold transition-colors">
@@ -127,14 +130,15 @@
   </div>
 
   <GettingStarted v-model="showGuide" />
-  <ShiftModal v-if="showShiftModal" :current-shift="currentShift" :required="shiftRequired || shiftStale" :stale="shiftStale" @close="showShiftModal = false" @shifted="onShifted" />
+  <ShiftModal v-if="showShiftModal" :current-shift="currentShift" :required="shiftRequired || shiftStale" :stale="shiftStale" @close="ui.closeShiftModal()" @shifted="onShifted" />
   <CashOutModal v-if="showCashOutModal" @close="showCashOutModal = false" @saved="showCashOutModal = false" />
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import axios from 'axios'
 import GettingStarted from '@/components/GettingStarted.vue'
 import ShiftModal from '@/components/ShiftModal.vue'
@@ -150,10 +154,14 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const auth      = useAuthStore()
+const ui        = useUiStore()
 const router    = useRouter()
 const route     = useRoute()
 const showGuide      = ref(false)
-const showShiftModal  = ref(false)
+const showShiftModal  = computed({
+  get: () => ui.shiftModalOpen,
+  set: (v) => v ? ui.openShiftModal() : ui.closeShiftModal(),
+})
 const shiftRequired   = ref(false)
 const shiftStale      = ref(false)
 const showCashOutModal = ref(false)
@@ -162,6 +170,10 @@ const restaurant = ref({ name: 'Liquor Shop + Bar', logo_url: '', address: '' })
 
 const collapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 const sidebarHidden = ref(false)
+
+watch(() => route.name, (name) => {
+  if (name === 'sales.new') collapsed.value = true
+}, { immediate: true })
 
 function toggleCollapse() {
   collapsed.value = !collapsed.value
@@ -257,7 +269,7 @@ async function loadRestaurant() {
 
 async function openShiftModal() {
   await loadCurrentShift()
-  showShiftModal.value = true
+  ui.openShiftModal()
 }
 
 function isNavActive(targetPath) {
@@ -284,7 +296,7 @@ function onShifted(shift) {
   // After closing a stale shift, immediately prompt to open today's shift
   if (!shift && wasStale && auth.user?.role === 'cashier') {
     shiftRequired.value = true
-    showShiftModal.value = true
+    ui.openShiftModal()
   }
 }
 
@@ -294,12 +306,12 @@ onMounted(async () => {
   if (auth.user?.role === 'cashier') {
     if (!currentShift.value) {
       shiftRequired.value = true
-      showShiftModal.value = true
+      ui.openShiftModal()
     } else {
       const shiftDay = new Date(currentShift.value.opened_at).toDateString()
       if (shiftDay !== new Date().toDateString()) {
         shiftStale.value = true
-        showShiftModal.value = true
+        ui.openShiftModal()
       }
     }
   }

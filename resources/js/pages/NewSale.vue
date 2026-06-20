@@ -267,8 +267,8 @@
                     <p class="text-sm font-bold text-gray-900">LKR {{ lkr(item._lineTotal) }}</p>
                   </div>
 
-                  <button @click="removeItem(i)" class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors">
-                    <XMarkIcon class="w-4 h-4" />
+                  <button @click="removeItem(i)" class="shrink-0 w-6 h-6 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                    <TrashIcon class="w-3.5 h-3.5" />
                   </button>
                 </div>
 

@@ -15,12 +15,12 @@
     <!-- Filters -->
     <div class="card py-3 flex gap-3 items-end flex-wrap no-print">
       <div>
-        <label class="form-label">From</label>
-        <input v-model="dateFrom" type="date" class="form-input" />
+        <label class="form-label">Date</label>
+        <input v-model="selectedDate" type="date" class="form-input" @change="load" />
       </div>
       <div>
-        <label class="form-label">To</label>
-        <input v-model="dateTo" type="date" class="form-input" />
+        <label class="form-label">Cashier</label>
+        <input v-model="cashierFilter" type="text" class="form-input w-44" placeholder="All cashiers" @keyup.enter="load" />
       </div>
       <button @click="load" :disabled="loading" class="btn-primary text-sm">
         {{ loading ? 'Loading…' : 'Generate' }}
@@ -71,9 +71,12 @@
               <i class="fas fa-user text-amber-600 text-sm"></i>
             </div>
             <div>
-              <p class="font-semibold text-gray-800">{{ shift.cashier }}</p>
+              <div class="flex items-center gap-2">
+                <p class="font-semibold text-gray-800">{{ shift.cashier }}</p>
+                <span v-if="shift.status === 'open'" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase tracking-wide">Live</span>
+              </div>
               <p class="text-xs text-gray-400">
-                {{ formatTime(shift.opened_at) }} — {{ formatTime(shift.closed_at) }}
+                {{ formatTime(shift.opened_at) }} — {{ shift.closed_at ? formatTime(shift.closed_at) : 'ongoing' }}
                 <span class="ml-1 text-gray-300">·</span>
                 <span class="ml-1">{{ shift.total_sales }} bills · {{ shift.total_items }} items</span>
               </p>
@@ -86,7 +89,7 @@
             <span class="px-2.5 py-1 rounded-full bg-green-50 text-green-700">Cash {{ lkr(shift.cash_sales) }}</span>
             <span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">Card {{ lkr(shift.card_sales) }}</span>
             <span v-if="shift.total_cash_outs > 0" class="px-2.5 py-1 rounded-full bg-orange-50 text-orange-600">Out −{{ lkr(shift.total_cash_outs) }}</span>
-            <span class="px-2.5 py-1 rounded-full"
+            <span v-if="shift.variance !== null" class="px-2.5 py-1 rounded-full"
                   :class="shift.variance < -0.01 ? 'bg-red-50 text-red-600' : shift.variance > 0.01 ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'">
               {{ shift.variance >= 0 ? '+' : '' }}{{ lkr(shift.variance) }}
             </span>
@@ -96,6 +99,17 @@
 
         <!-- Expandable detail -->
         <div v-if="expanded[shift.id]" class="border-t border-gray-100">
+
+          <!-- Action bar -->
+          <div class="px-5 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+            <span class="text-xs text-gray-500 font-medium">{{ shift.total_sales }} invoice{{ shift.total_sales !== 1 ? 's' : '' }} · {{ shift.total_items }} items sold</span>
+            <button @click="openItemModal(shift)"
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border border-gray-200 bg-white hover:border-amber-300 hover:text-amber-700 transition-colors">
+              <i class="fas fa-box-open text-amber-500"></i>
+              View Item Sales
+            </button>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
 
             <!-- Cash drawer -->
@@ -197,7 +211,7 @@
     <!-- Grand totals -->
     <div v-if="totals && shifts.length" class="card p-0 overflow-hidden">
       <div class="px-5 py-3 bg-amber-50 border-b border-amber-200">
-        <span class="font-bold text-amber-800 text-sm">Grand Total — {{ dateFrom }} to {{ dateTo }}</span>
+        <span class="font-bold text-amber-800 text-sm">Grand Total — {{ formatDate(selectedDate) }}{{ cashierFilter ? ' · ' + cashierFilter : '' }}</span>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 divide-x divide-gray-100">
         <div v-for="(item, idx) in grandTotalCells" :key="idx" class="px-4 py-3 text-center">
@@ -208,22 +222,83 @@
     </div>
 
   </div>
+
+  <!-- Item Sales Modal -->
+  <teleport to="body">
+    <div v-if="itemModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="itemModal.show = false"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+
+        <!-- Modal header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <p class="font-bold text-gray-800">Item Sales — {{ itemModal.cashier }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ formatTime(itemModal.opened_at) }} – {{ formatTime(itemModal.closed_at) }} · {{ itemModal.items.length }} products</p>
+          </div>
+          <button @click="itemModal.show = false" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors text-xl leading-none">✕</button>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-y-auto flex-1">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Product</th>
+                <th class="text-left px-3 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Category</th>
+                <th class="text-center px-3 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Qty</th>
+                <th class="text-right px-3 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg Price</th>
+                <th class="text-right px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+              <tr v-for="item in itemModal.items" :key="item.product_name" class="hover:bg-amber-50/40 transition-colors">
+                <td class="px-5 py-2.5 font-medium text-gray-800">{{ item.product_name }}</td>
+                <td class="px-3 py-2.5 text-xs text-gray-500">{{ item.category_name }}</td>
+                <td class="px-3 py-2.5 text-center font-bold text-amber-700">{{ item.qty }}</td>
+                <td class="px-3 py-2.5 text-right text-gray-500">{{ lkr(item.avg_price) }}</td>
+                <td class="px-5 py-2.5 text-right font-bold text-gray-900">{{ lkr(item.total) }}</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-gray-50 border-t-2 border-gray-200 sticky bottom-0">
+              <tr>
+                <td colspan="2" class="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Total</td>
+                <td class="px-3 py-3 text-center font-bold text-amber-700">{{ itemModal.items.reduce((s, r) => s + r.qty, 0) }}</td>
+                <td></td>
+                <td class="px-5 py-3 text-right font-bold text-gray-900">{{ lkr(itemModal.items.reduce((s, r) => s + r.total, 0)) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </teleport>
+
 </template>
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import axios from 'axios'
 
-const today    = new Date().toISOString().slice(0, 10)
-const dateFrom = ref(today)
-const dateTo   = ref(today)
-const loading  = ref(false)
+const today          = new Date().toISOString().slice(0, 10)
+const selectedDate   = ref(today)
+const cashierFilter  = ref('')
+const loading        = ref(false)
 const shifts   = ref([])
 const totals   = ref(null)
-const expanded = reactive({})
+const expanded  = reactive({})
+const itemModal = reactive({ show: false, cashier: '', opened_at: null, closed_at: null, items: [] })
 
 function toggleShift(id) {
   expanded[id] = !expanded[id]
+}
+
+function openItemModal(shift) {
+  itemModal.cashier    = shift.cashier
+  itemModal.opened_at  = shift.opened_at
+  itemModal.closed_at  = shift.closed_at
+  itemModal.items      = shift.item_breakdown ?? []
+  itemModal.show       = true
 }
 
 function lkr(val) {
@@ -282,7 +357,7 @@ async function load() {
   loading.value = true
   try {
     const { data } = await axios.get('/api/cashier-shifts/report', {
-      params: { from: dateFrom.value, to: dateTo.value }
+      params: { date: selectedDate.value, cashier: cashierFilter.value || undefined }
     })
     shifts.value = data.shifts
     totals.value = data.totals

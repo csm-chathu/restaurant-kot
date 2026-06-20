@@ -9,9 +9,11 @@
           <input v-model="search" type="search" placeholder="Search invoice, customer…"
             class="form-input pl-8 w-52" @input="debouncedFetch" />
         </div>
-        <input v-model="dateFrom" type="date" class="form-input w-36" @change="resetAndFetch" title="From date" />
-        <span class="text-gray-400 text-xs">to</span>
-        <input v-model="dateTo"   type="date" class="form-input w-36" @change="resetAndFetch" title="To date" />
+        <template v-if="!isCashier">
+          <input v-model="dateFrom" type="date" class="form-input w-36" @change="resetAndFetch" title="From date" />
+          <span class="text-gray-400 text-xs">to</span>
+          <input v-model="dateTo"   type="date" class="form-input w-36" @change="resetAndFetch" title="To date" />
+        </template>
         <select v-model="statusFilter" class="form-input w-32" @change="resetAndFetch">
           <option value="">All status</option>
           <option value="paid">Paid</option>
@@ -19,17 +21,19 @@
           <option value="partial">Partial</option>
           <option value="refunded">Refunded</option>
         </select>
-        <div class="flex items-center gap-1">
-          <button @click="setQuick('week')"
-            :class="quickFilter === 'week' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
-            class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Week</button>
-          <button @click="setQuick('today')"
-            :class="quickFilter === 'today' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
-            class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">Today</button>
-          <button @click="setQuick('month')"
-            :class="quickFilter === 'month' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
-            class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Month</button>
-        </div>
+        <template v-if="!isCashier">
+          <div class="flex items-center gap-1">
+            <button @click="setQuick('week')"
+              :class="quickFilter === 'week' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+              class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Week</button>
+            <button @click="setQuick('today')"
+              :class="quickFilter === 'today' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+              class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">Today</button>
+            <button @click="setQuick('month')"
+              :class="quickFilter === 'month' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+              class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Month</button>
+          </div>
+        </template>
         <button v-if="search || statusFilter || quickFilter" @click="clearFilters"
           class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
       </div>
@@ -39,8 +43,28 @@
       </router-link>
     </div>
 
+    <!-- Shift scope notice -->
+    <div v-if="activeShift" class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+      <span class="text-amber-500">⏱</span>
+      Showing invoices from your current shift only — started {{ new Date(activeShift.opened_at).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' }) }}
+    </div>
+
+    <!-- No active shift (cashier only) -->
+    <div v-if="noShift" class="card p-12 flex flex-col items-center gap-4 text-center">
+      <div class="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+        <i class="fas fa-clock text-amber-500 text-2xl"></i>
+      </div>
+      <div>
+        <p class="font-semibold text-gray-800 text-lg">No active shift</p>
+        <p class="text-sm text-gray-500 mt-1">You need to open a shift before you can view or create invoices.</p>
+      </div>
+      <button @click="ui.openShiftModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition-colors">
+        Open Shift
+      </button>
+    </div>
+
     <!-- Summary cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div v-if="!noShift" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="card flex items-center gap-4">
         <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
           <BanknotesIcon class="w-5 h-5 text-amber-600" />
@@ -84,7 +108,7 @@
     </div>
 
     <!-- Table -->
-    <div class="card p-0 overflow-hidden">
+    <div v-if="!noShift" class="card p-0 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full min-w-[700px]">
           <thead class="bg-gray-50 border-b border-gray-200">
@@ -188,6 +212,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import {
   PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
   ReceiptPercentIcon, BanknotesIcon, CheckCircleIcon, PrinterIcon,
@@ -196,12 +221,15 @@ import {
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const auth         = useAuthStore()
+const ui           = useUiStore()
 const isCashier    = computed(() => auth.user?.role === 'cashier')
 const newBillRoute = '/sales/new'
 const editDraftRoute = (id) => ({ name: 'sales.new', query: { draft: id } })
 
 const sales          = ref({ data: [] })
 const summaryRaw     = ref({})
+const activeShift    = ref(null)
+const noShift        = ref(false)
 const search         = ref('')
 const page           = ref(1)
 const dateFrom       = ref('')
@@ -254,6 +282,8 @@ async function fetchData() {
     })
     sales.value = data
     summaryRaw.value = data.summary ?? {}
+    activeShift.value = data.active_shift ?? null
+    noShift.value = data.no_shift ?? false
   } finally { loading.value = false }
 }
 

@@ -131,12 +131,19 @@
         <p v-if="error" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ error }}</p>
       </div>
 
-      <div class="flex justify-end gap-3 px-6 py-4 border-t">
-        <button v-if="!closeSummary && !required" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
-        <button v-if="closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Done</button>
-        <button v-if="!closeSummary" @click="submit" :disabled="saving || (currentShift && (checkingDrafts || draftCount > 0))" class="btn-primary">
-          {{ saving ? 'Please wait…' : checkingDrafts ? 'Checking drafts…' : (currentShift ? 'Close Shift & Print' : 'Open Shift') }}
+      <div class="flex items-center justify-between gap-3 px-6 py-4 border-t">
+        <button type="button" @click="doLogout"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+          Logout
         </button>
+        <div class="flex gap-3">
+          <button v-if="!closeSummary && !required" type="button" @click="$emit('close')" class="btn-secondary">Cancel</button>
+          <button v-if="closeSummary" type="button" @click="$emit('close')" class="btn-secondary">Done</button>
+          <button v-if="!closeSummary" @click="submit" :disabled="saving || (currentShift && (checkingDrafts || draftCount > 0))" class="btn-primary">
+            {{ saving ? 'Please wait…' : checkingDrafts ? 'Checking drafts…' : (currentShift ? 'Close Shift & Print' : 'Open Shift') }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -249,8 +256,14 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps({ currentShift: Object, required: Boolean, stale: Boolean })
+const auth = useAuthStore()
+async function doLogout() {
+  await auth.logout()
+  window.location.href = '/login'
+}
 const emit  = defineEmits(['close', 'shifted'])
 
 const openingCash     = ref(0)

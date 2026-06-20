@@ -11,7 +11,7 @@ class ClearTransactionalData extends Command
                             {--branch= : Only clear data for a specific branch_id (leave blank for ALL branches)}
                             {--force : Skip confirmation prompt}';
 
-    protected $description = 'Clear all transactional data (sales, shifts, accounting) while keeping products, users, customers, and settings.';
+    protected $description = 'Clear transactional data (sales, shifts, accounting) while keeping products, stock, users, customers, and settings.';
 
     // Tables wiped in order (children before parents to respect FK constraints)
     private array $tables = [
@@ -28,7 +28,7 @@ class ClearTransactionalData extends Command
         'sales',
     ];
 
-    // Tables that are NOT branch-scoped (always fully truncated)
+    // Tables with no branch_id column — need special handling
     private array $nobranchTables = [
         'journal_entries',
     ];
@@ -42,8 +42,8 @@ class ClearTransactionalData extends Command
         $this->line('  Tables to be cleared: <fg=cyan>' . implode(', ', $this->tables) . '</>');
         $this->line('  Scope: <fg=cyan>' . ($branchId ? "branch_id = {$branchId}" : 'ALL branches') . '</>');
         $this->newLine();
-        $this->line('  <fg=gray>PRESERVED: products, categories, customers, users, suppliers,');
-        $this->line('  branches, settings, grns, purchases, employees, gold_rates, tables</>');
+        $this->line('  <fg=gray>PRESERVED: products, stock quantities, categories, customers,');
+        $this->line('  users, suppliers, branches, settings, gold_rates, tables, grns, purchases</>');
         $this->newLine();
 
         if (!$this->option('force')) {
@@ -51,7 +51,7 @@ class ClearTransactionalData extends Command
                 $this->line('  Aborted.');
                 return 0;
             }
-            if (!$this->confirm('  Type YES to confirm final deletion', false)) {
+            if (!$this->confirm('  Confirm again — all sales and shift data will be permanently deleted.', false)) {
                 $this->line('  Aborted.');
                 return 0;
             }
@@ -65,7 +65,6 @@ class ClearTransactionalData extends Command
                     $count = DB::table($table)->where('branch_id', $branchId)->delete();
                     $this->line("  <fg=green>✓</> {$table} — {$count} rows deleted (branch {$branchId})");
                 } elseif ($branchId && in_array($table, $this->nobranchTables)) {
-                    // journal_entries: delete via sale source
                     $saleIds = DB::table('sales')->where('branch_id', $branchId)->pluck('id');
                     $count = DB::table($table)
                         ->where('source_type', 'sale')
@@ -83,39 +82,8 @@ class ClearTransactionalData extends Command
 
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
-        // Reset stock quantities to match GRN receipts (since stock_movements are gone)
         $this->newLine();
-        $this->line('  Recalculating stock from GRNs...');
-        try {
-            if ($branchId) {
-                DB::table('products')->where('branch_id', $branchId)->update(['stock_quantity' => 0]);
-                $grns = DB::table('grn_items')
-                    ->join('grns', 'grn_items.grn_id', '=', 'grns.id')
-                    ->where('grns.branch_id', $branchId)
-                    ->where('grns.status', 'received')
-                    ->select('grn_items.product_id', DB::raw('SUM(grn_items.received_quantity) as qty'))
-                    ->groupBy('grn_items.product_id')
-                    ->get();
-            } else {
-                DB::table('products')->update(['stock_quantity' => 0]);
-                $grns = DB::table('grn_items')
-                    ->join('grns', 'grn_items.grn_id', '=', 'grns.id')
-                    ->where('grns.status', 'received')
-                    ->select('grn_items.product_id', DB::raw('SUM(grn_items.received_quantity) as qty'))
-                    ->groupBy('grn_items.product_id')
-                    ->get();
-            }
-
-            foreach ($grns as $row) {
-                DB::table('products')->where('id', $row->product_id)->update(['stock_quantity' => $row->qty]);
-            }
-            $this->line("  <fg=green>✓</> Stock quantities reset from GRN history ({$grns->count()} products)");
-        } catch (\Exception $e) {
-            $this->line("  <fg=yellow>⚠</> Stock reset skipped: {$e->getMessage()}");
-        }
-
-        $this->newLine();
-        $this->line('  <fg=green;options=bold>Done. Database is clean and ready to use.</>');
+        $this->line('  <fg=green;options=bold>Done. Sales and shift data cleared. Stock and products unchanged.</>');
         $this->newLine();
 
         return 0;

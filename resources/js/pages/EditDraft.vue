@@ -833,7 +833,7 @@ onMounted(async () => {
 
     // Load shared data
     const [p, c, t, tb] = await Promise.all([
-      axios.get('/api/products', { params: { per_page: 200 } }),
+      axios.get('/api/products', { params: { per_page: 1000 } }),
       axios.get('/api/customers/all'),
       axios.get('/api/tax-settings'),
       axios.get('/api/tables/all'),

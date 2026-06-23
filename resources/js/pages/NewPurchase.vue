@@ -175,7 +175,7 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const [p, s] = await Promise.all([axios.get('/api/products',{params:{per_page:200}}), axios.get('/api/suppliers/all')])
+  const [p, s] = await Promise.all([axios.get('/api/products',{params:{per_page:1000}}), axios.get('/api/suppliers/all')])
   products.value  = p.data.data
   suppliers.value = s.data
 })

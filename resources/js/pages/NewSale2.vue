@@ -1362,7 +1362,7 @@ async function submit(billStatus) {
     if (billStatus === 'completed') {
       lastReceiptId.value = String(saleId)
       localStorage.setItem('pos_last_receipt_id', String(saleId))
-      router.push(`/sales/${saleId}?print=1`)
+      router.push(`/sales/${saleId}`)
     } else {
       // Stay on POS — update draft state so further saves update the same draft
       activeDraftId.value = saleId

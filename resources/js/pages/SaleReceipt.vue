@@ -11,6 +11,11 @@
         <span class="text-sm font-medium text-gray-700">{{ sale?.invoice_number }}</span>
       </div>
       <div class="flex gap-2">
+        <!-- Change Payment button — only for completed sales -->
+        <button v-if="sale && sale.status === 'completed'" @click="openPaymentModal"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium text-sm shadow-sm transition-colors">
+          <CreditCardIcon class="w-4 h-4" /> Change Payment
+        </button>
         <button @click="printReceipt" :disabled="loading || !sale || printing"
           class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-lg font-medium text-sm shadow-sm transition-colors">
           <svg v-if="printing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -22,6 +27,69 @@
         </button>
       </div>
     </div>
+
+    <!-- Change Payment Modal -->
+    <Teleport to="body">
+      <div v-if="showPaymentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <h2 class="text-base font-semibold text-gray-800 mb-4">Change Payment Method</h2>
+
+          <div class="space-y-3">
+            <label class="block text-sm text-gray-600">Payment Method</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button v-for="m in paymentMethods" :key="m.value"
+                @click="newPaymentMethod = m.value"
+                :class="[
+                  'px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
+                  newPaymentMethod === m.value
+                    ? 'bg-amber-500 border-amber-500 text-white'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                ]">
+                {{ m.label }}
+              </button>
+            </div>
+
+            <!-- Card reference -->
+            <div v-if="newPaymentMethod === 'card'" class="mt-1">
+              <label class="block text-sm text-gray-600 mb-1">Card Reference (optional)</label>
+              <input v-model="newCardReference" type="text" placeholder="e.g. last 4 digits"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            </div>
+
+            <!-- Split amounts -->
+            <div v-if="newPaymentMethod === 'split'" class="space-y-2 mt-1">
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Cash Amount (LKR)</label>
+                <input v-model.number="splitCash" type="number" min="0" placeholder="0.00"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-600 mb-1">Card Amount (LKR)</label>
+                <input v-model.number="splitCard" type="number" min="0" placeholder="0.00"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div class="text-xs text-gray-500 text-right">
+                Total: LKR {{ ((splitCash || 0) + (splitCard || 0)).toLocaleString('en-LK', {minimumFractionDigits:2}) }}
+                / {{ lkr(sale?.total) }}
+              </div>
+            </div>
+
+            <p v-if="paymentError" class="text-red-500 text-sm">{{ paymentError }}</p>
+          </div>
+
+          <div class="flex gap-2 mt-5">
+            <button @click="showPaymentModal = false; paymentError = ''"
+              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+              Cancel
+            </button>
+            <button @click="savePaymentChange" :disabled="savingPayment"
+              class="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-lg text-sm font-medium">
+              {{ savingPayment ? 'Saving…' : 'Save & Reprint' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-20 text-gray-400">
@@ -212,16 +280,106 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon, PrinterIcon, ArrowPathIcon, CreditCardIcon } from '@heroicons/vue/24/outline'
 
 const route          = useRoute()
 const router         = useRouter()
 const sale           = ref(null)
 const loading        = ref(true)
 const printing       = ref(false)
+
+// Change-payment modal
+const showPaymentModal  = ref(false)
+const newPaymentMethod  = ref('cash')
+const newCardReference  = ref('')
+const splitCash         = ref(0)
+const splitCard         = ref(0)
+const savingPayment     = ref(false)
+const paymentError      = ref('')
+
+const paymentMethods = [
+  { value: 'cash',  label: 'Cash' },
+  { value: 'card',  label: 'Card' },
+  { value: 'split', label: 'Split' },
+]
+
+let _updatingSplit = false
+watch(splitCash, (val) => {
+  if (_updatingSplit || newPaymentMethod.value !== 'split' || !sale.value) return
+  _updatingSplit = true
+  const remainder = Math.max(0, Math.round((Number(sale.value.total) - (val || 0)) * 100) / 100)
+  splitCard.value = remainder
+  _updatingSplit = false
+})
+watch(splitCard, (val) => {
+  if (_updatingSplit || newPaymentMethod.value !== 'split' || !sale.value) return
+  _updatingSplit = true
+  const remainder = Math.max(0, Math.round((Number(sale.value.total) - (val || 0)) * 100) / 100)
+  splitCash.value = remainder
+  _updatingSplit = false
+})
+
+function openPaymentModal() {
+  const existing = sale.value?.payments ?? []
+  if (existing.length > 1) {
+    newPaymentMethod.value = 'split'
+    splitCash.value = existing.find(p => p.payment_method === 'cash')?.amount ?? 0
+    splitCard.value = existing.find(p => p.payment_method === 'card')?.amount ?? 0
+  } else {
+    newPaymentMethod.value = sale.value?.payment_method === 'other' ? 'cash' : (sale.value?.payment_method ?? 'cash')
+    splitCash.value = Number(sale.value?.total ?? 0)
+    splitCard.value = 0
+  }
+  newCardReference.value = sale.value?.card_reference ?? ''
+  paymentError.value = ''
+  showPaymentModal.value = true
+}
+
+async function savePaymentChange() {
+  paymentError.value = ''
+
+  if (newPaymentMethod.value === 'split') {
+    const total = (splitCash.value || 0) + (splitCard.value || 0)
+    if ((splitCash.value || 0) <= 0 && (splitCard.value || 0) <= 0) {
+      paymentError.value = 'Enter cash and/or card amounts.'
+      return
+    }
+    if (Math.abs(total - sale.value.total) > 0.01) {
+      paymentError.value = `Split total (${total.toFixed(2)}) must equal bill total (${Number(sale.value.total).toFixed(2)}).`
+      return
+    }
+  }
+
+  savingPayment.value = true
+  try {
+    let payload
+
+    if (newPaymentMethod.value === 'split') {
+      const payments = []
+      if ((splitCash.value || 0) > 0) payments.push({ payment_method: 'cash', amount: splitCash.value })
+      if ((splitCard.value || 0) > 0) payments.push({ payment_method: 'card', amount: splitCard.value })
+      payload = { payments, amount_paid: (splitCash.value || 0) + (splitCard.value || 0) }
+    } else {
+      payload = { payment_method: newPaymentMethod.value }
+      if (newPaymentMethod.value === 'card' && newCardReference.value.trim()) {
+        payload.card_reference = newCardReference.value.trim()
+      }
+    }
+
+    const { data } = await axios.patch(`/api/sales/${sale.value.id}/payment`, payload)
+    sale.value = data
+    showPaymentModal.value = false
+    await nextTick()
+    printReceipt()
+  } catch (err) {
+    paymentError.value = err.response?.data?.message ?? 'Failed to update payment.'
+  } finally {
+    savingPayment.value = false
+  }
+}
 const appName        = import.meta.env.VITE_APP_NAME ?? 'Liquor Shop POS'
 const restaurant     = ref({ name: '', address: '', city: '', country: '' })
 

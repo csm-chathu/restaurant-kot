@@ -664,6 +664,50 @@ class SaleController extends Controller
         }
     }
 
+    public function updatePayment(Request $request, Sale $sale)
+    {
+        $this->authorizeBranch($sale->branch_id);
+
+        if ($sale->status !== 'completed') {
+            return response()->json(['message' => 'Only completed bills can have their payment method changed.'], 422);
+        }
+
+        $data = $request->validate([
+            'payment_method'            => 'required_without:payments|in:cash,card,bank_transfer,cheque,other',
+            'card_reference'            => 'nullable|string|max:100',
+            'amount_paid'               => 'nullable|numeric|min:0',
+            'payments'                  => 'nullable|array|min:1',
+            'payments.*.payment_method' => 'required_with:payments|in:cash,card,bank_transfer,cheque,other',
+            'payments.*.amount'         => 'required_with:payments|numeric|min:0.01',
+            'payments.*.notes'          => 'nullable|string|max:255',
+        ]);
+
+        $newMethod  = $data['payment_method'] ?? 'cash';
+        $amountPaid = round((float) ($data['amount_paid'] ?? $sale->amount_paid), 2);
+
+        if (!empty($data['payments'])) {
+            // Explicit split-payment array provided — rebuild records fully
+            $payments      = $this->normalizePayments($data, false);
+            $newMethod     = $this->resolvePaymentMethod($payments, $newMethod);
+            $amountPaid    = round((float) $payments->sum('amount'), 2);
+            $this->syncPayments($sale, $payments);
+        } else {
+            // Just a method change — update existing payment records in-place
+            $sale->payments()->update(['payment_method' => $newMethod]);
+        }
+
+        $sale->update([
+            'payment_method' => $newMethod,
+            'card_reference' => ($newMethod === 'card') ? ($data['card_reference'] ?? $sale->card_reference) : null,
+            'amount_paid'    => $amountPaid,
+            'payment_status' => $this->resolvePaymentStatus($amountPaid, $sale->total, null),
+        ]);
+
+        AuditLog::record('payment_method_changed', "Payment method updated to {$newMethod} on {$sale->invoice_number}", $sale);
+
+        return response()->json($sale->load(['items.product', 'customer', 'user', 'payments']));
+    }
+
     private function authorizeBranch(?int $branchId): void
     {
         $user = request()->user();

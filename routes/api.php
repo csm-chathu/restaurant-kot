@@ -78,7 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cashier-shifts/cash-outs',        [CashierShiftController::class, 'cashOuts']);
 
     Route::apiResource('sales',      SaleController::class)->except(['update']);
-    Route::put('/sales/{sale}',      [SaleController::class, 'update']); // Draft bill updates
+    Route::put('/sales/{sale}',          [SaleController::class, 'update']); // Draft bill updates
+    Route::patch('/sales/{sale}/payment',[SaleController::class, 'updatePayment']); // Change payment method post-completion
     Route::apiResource('purchases',  PurchaseController::class)->except(['update']);
 
     // Gold rates

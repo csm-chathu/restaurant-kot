@@ -21,6 +21,12 @@
           <option value="partial">Partial</option>
           <option value="refunded">Refunded</option>
         </select>
+        <select v-model="paymentMethodFilter" class="form-input w-32" @change="resetAndFetch">
+          <option value="">All methods</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="other">Other</option>
+        </select>
         <template v-if="!isCashier">
           <div class="flex items-center gap-1">
             <button @click="setQuick('week')"
@@ -79,10 +85,24 @@
         <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
           <CheckCircleIcon class="w-5 h-5 text-green-600" />
         </div>
-        <div>
+        <div class="min-w-0">
           <p class="text-xs text-gray-500 uppercase tracking-wide">Paid</p>
           <p class="text-lg font-bold text-green-700">LKR {{ lkr(summary.paid?.total ?? 0) }}</p>
           <p class="text-xs text-gray-400">{{ summary.paid?.count ?? 0 }} bill{{ (summary.paid?.count ?? 0) !== 1 ? 's' : '' }}</p>
+          <div class="flex gap-2 mt-1 flex-wrap">
+            <span v-if="paymentBreakdown.cash" class="inline-flex items-center gap-0.5 text-xs text-green-600 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>
+              Cash {{ lkr(paymentBreakdown.cash) }}
+            </span>
+            <span v-if="paymentBreakdown.card" class="inline-flex items-center gap-0.5 text-xs text-blue-600 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>
+              Card {{ lkr(paymentBreakdown.card) }}
+            </span>
+            <span v-if="paymentBreakdown.other" class="inline-flex items-center gap-0.5 text-xs text-gray-500 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
+              Other {{ lkr(paymentBreakdown.other) }}
+            </span>
+          </div>
         </div>
       </div>
       <div class="card flex items-center gap-4">
@@ -226,19 +246,21 @@ const isCashier    = computed(() => auth.user?.role === 'cashier')
 const newBillRoute = '/sales/new'
 const editDraftRoute = (id) => ({ name: 'sales.new', query: { draft: id } })
 
-const sales          = ref({ data: [] })
-const summaryRaw     = ref({})
-const activeShift    = ref(null)
-const noShift        = ref(false)
-const search         = ref('')
-const page           = ref(1)
-const dateFrom       = ref('')
-const dateTo         = ref('')
-const statusFilter   = ref('')
-const confirmDelete  = ref(null)
-const confirmMessage = ref('')
-const quickFilter  = ref('')
-const loading      = ref(false)
+const sales                = ref({ data: [] })
+const summaryRaw           = ref({})
+const paymentBreakdown     = ref({})
+const activeShift          = ref(null)
+const noShift              = ref(false)
+const search               = ref('')
+const page                 = ref(1)
+const dateFrom             = ref('')
+const dateTo               = ref('')
+const statusFilter         = ref('')
+const paymentMethodFilter  = ref('')
+const confirmDelete        = ref(null)
+const confirmMessage       = ref('')
+const quickFilter          = ref('')
+const loading              = ref(false)
 
 function toDateStr(d) {
   return d.toISOString().slice(0, 10)
@@ -273,22 +295,24 @@ async function fetchData() {
   try {
     const { data } = await axios.get('/api/sales', {
       params: {
-        page:        page.value,
-        search:      search.value,
-        date_from:   dateFrom.value,
-        date_to:     dateTo.value,
-        status:      statusFilter.value,
+        page:           page.value,
+        search:         search.value,
+        date_from:      dateFrom.value,
+        date_to:        dateTo.value,
+        status:         statusFilter.value,
+        payment_method: paymentMethodFilter.value,
       },
     })
     sales.value = data
     summaryRaw.value = data.summary ?? {}
+    paymentBreakdown.value = data.payment_breakdown ?? {}
     activeShift.value = data.active_shift ?? null
     noShift.value = data.no_shift ?? false
   } finally { loading.value = false }
 }
 
 function clearFilters() {
-  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''; quickFilter.value = ''
+  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''; paymentMethodFilter.value = ''; quickFilter.value = ''
   page.value = 1; fetchData()
 }
 

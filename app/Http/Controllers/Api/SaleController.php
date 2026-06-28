@@ -56,6 +56,7 @@ class SaleController extends Controller
             ->when($request->filled('customer_id'), fn($q) => $q->where('customer_id', $request->input('customer_id')))
             ->when($request->filled('status'), fn($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('payment_status'), fn($q) => $q->where('payment_status', $request->input('payment_status')))
+            ->when($request->filled('payment_method'), fn($q) => $q->where('payment_method', $request->input('payment_method')))
             ->when($request->filled('date_from'), fn($q) => $q->whereDate('sold_at', '>=', $request->input('date_from')))
             ->when($request->filled('date_to'), fn($q) => $q->whereDate('sold_at', '<=', $request->input('date_to')));
 
@@ -66,14 +67,23 @@ class SaleController extends Controller
             ->get()
             ->keyBy('payment_status');
 
+        // Cash / card breakdown for the Paid tile
+        $paymentBreakdown = (clone $base)
+            ->where('status', 'completed')
+            ->where('payment_status', 'paid')
+            ->selectRaw('payment_method, SUM(total) as total')
+            ->groupBy('payment_method')
+            ->pluck('total', 'payment_method');
+
         $sales = (clone $base)
             ->with(['customer:id,name', 'user:id,name', 'payments:id,sale_id,payment_method,amount'])
             ->latest('sold_at')
             ->paginate($request->integer('per_page', 20));
 
         return response()->json(array_merge($sales->toArray(), [
-            'summary'      => $summary,
-            'active_shift' => $activeShift ? ['opened_at' => $activeShift->opened_at] : null,
+            'summary'          => $summary,
+            'payment_breakdown'=> $paymentBreakdown,
+            'active_shift'     => $activeShift ? ['opened_at' => $activeShift->opened_at] : null,
         ]));
     }
 

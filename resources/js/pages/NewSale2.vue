@@ -182,9 +182,30 @@
 
         <!-- Table + Customer -->
         <div class="px-3 pt-3 pb-2 bg-white border-b border-gray-200 shrink-0 space-y-2">
-          <!-- Table picker button -->
+          <!-- Order type toggle -->
+          <div class="flex gap-1.5">
+            <button
+              type="button"
+              @click="setOrderType('dine_in')"
+              class="flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all"
+              :class="form.order_type === 'dine_in'
+                ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-200'
+                : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-amber-300'"
+            >🍽️ Dine-in</button>
+            <button
+              type="button"
+              @click="setOrderType('takeaway')"
+              class="flex-1 py-2 rounded-xl text-sm font-bold border-2 transition-all"
+              :class="form.order_type === 'takeaway'
+                ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200'
+                : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300'"
+            >🥡 Takeaway</button>
+          </div>
+
+          <!-- Table picker button (dine-in only) -->
           <div class="flex gap-2">
             <button
+              v-if="form.order_type === 'dine_in'"
               @click="showTablePicker = true"
               type="button"
               class="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all font-semibold text-sm"
@@ -274,9 +295,12 @@
                     </div>
 
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm font-bold text-gray-800 leading-tight truncate">
-                        {{ item.product_ref?.name || 'Product' }}
-                      </p>
+                      <div class="flex items-center gap-1.5">
+                        <p class="text-sm font-bold text-gray-800 leading-tight truncate">
+                          {{ item.product_ref?.name || 'Product' }}
+                        </p>
+                        <span v-if="item._kotSent" class="shrink-0 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full leading-none">✓ KOT</span>
+                      </div>
                       <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                         <p class="text-xs text-amber-600 font-semibold">
                           LKR {{ lkr(getEffectiveUnitPrice(item)) }}
@@ -286,6 +310,20 @@
                         <div class="flex items-center gap-1">
                           <span class="text-xs text-gray-400">Disc:</span>
                           <input v-model.number="item.discount" type="number" min="0" class="w-14 px-1.5 py-0.5 rounded border border-gray-200 text-xs text-center focus:outline-none focus:border-amber-400" @input="recalcItem(item)" @wheel.prevent placeholder="0" />
+                          <button
+                            type="button"
+                            @click="item._showNotes = !item._showNotes"
+                            class="relative px-1.5 py-0.5 rounded border text-xs font-medium transition-colors"
+                            :class="item._showNotes
+                              ? 'bg-orange-500 text-white border-orange-500'
+                              : 'bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-100'"
+                            title="Kitchen notes"
+                          >
+                            📝 Note
+                            <span v-if="!item._showNotes && (item.item_notes || item.item_notes_custom)"
+                              class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-orange-500 border border-white">
+                            </span>
+                          </button>
                         </div>
                         <label v-if="item.product_ref?.bottle_deposit_required" class="flex items-center gap-1 text-xs text-gray-500 cursor-pointer whitespace-nowrap">
                           <input type="checkbox" v-model="item.empty_bottle_returned" @change="recalcItem(item)" class="rounded text-amber-600" />
@@ -314,7 +352,11 @@
                       <p class="text-sm font-bold text-gray-900">{{ lkr(item._lineTotal) }}</p>
                     </div>
 
-                    <button @click="removeItem(i)" class="shrink-0 w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button
+                      @click="item._kotSent ? openCancelConfirm(i, item) : removeItem(i)"
+                      class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+                      :class="item._kotSent ? 'text-red-500 hover:text-red-700 hover:bg-red-50' : 'text-red-400 hover:text-red-600 hover:bg-red-50'"
+                    >
                       <TrashIcon class="w-4 h-4" />
                     </button>
                   </div>
@@ -366,6 +408,29 @@
 
                     </div>
 
+                    <!-- Kitchen notes -->
+                    <div v-if="item._showNotes" class="mt-1.5">
+                      <div class="flex flex-wrap gap-1 mb-1">
+                        <button
+                          v-for="note in kitchenNotes"
+                          :key="note"
+                          type="button"
+                          @click="toggleKitchenNote(item, note)"
+                          class="px-2 py-0.5 rounded-full text-xs font-medium border transition-colors"
+                          :class="item.item_notes?.includes(note)
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'"
+                        >{{ note }}</button>
+                      </div>
+                      <input
+                        v-model="item.item_notes_custom"
+                        type="text"
+                        maxlength="200"
+                        placeholder="Custom note (e.g. No salt, allergies…)"
+                        class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700 focus:outline-none focus:border-orange-400 placeholder-gray-300"
+                      />
+                    </div>
+
                   </div>
                 </template>
               </div>
@@ -391,8 +456,9 @@
               >
                 <div class="flex flex-col items-start">
                   <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider">Total Amount</span>
-                  <div class="flex items-center gap-2 mt-0.5">
+                  <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span v-if="form.discount > 0" class="text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full">−{{ lkr(form.discount) }} off</span>
+                    <span v-if="form.order_type === 'dine_in' && form.service_charge > 0" class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">+{{ form.service_charge_rate }}% SC</span>
                     <span v-if="form.tax > 0" class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">+{{ form.tax_rate }}% tax</span>
                   </div>
                 </div>
@@ -402,7 +468,7 @@
                 </div>
               </button>
 
-              <!-- Collapsible: subtotal / discount / tax -->
+              <!-- Collapsible: subtotal / discount / service charge / tax -->
               <div v-if="showPricingDetails" class="mt-3 pt-3 border-t border-amber-200 space-y-2">
                 <div class="flex justify-between text-sm text-gray-500">
                   <span>Subtotal</span><span class="text-gray-800 font-semibold">LKR {{ lkr(subtotal) }}</span>
@@ -428,6 +494,11 @@
                     −LKR {{ lkr(form.discount) }}
                     <span v-if="discountType === 'percent'" class="text-gray-400 text-xs font-normal">({{ discountInput }}%)</span>
                   </span>
+                </div>
+                <div v-if="form.order_type === 'dine_in' && form.service_charge_rate > 0"
+                  class="flex justify-between text-sm font-semibold text-amber-700">
+                  <span>Service Charge ({{ form.service_charge_rate }}%)</span>
+                  <span>+LKR {{ lkr(form.service_charge) }}</span>
                 </div>
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-2">
@@ -579,6 +650,27 @@
             <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F9</span>
           </button>
           <button
+            @click="sendToKitchen"
+            :disabled="saving || kotSending || !unsentItems.length"
+            class="flex items-center justify-center gap-2 px-4 py-3.5 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-colors shrink-0"
+            :class="unsentItems.length ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-400'"
+            title="Save as draft and print kitchen ticket (F8)"
+          >
+            <ArrowPathIcon v-if="kotSending" class="w-4 h-4 animate-spin" />
+            <span v-else>🍳</span>
+            <span>KOT<span v-if="unsentItems.length" class="ml-1 bg-white/30 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{{ unsentItems.length }}</span></span>
+            <span v-if="kbShortcutsEnabled" class="opacity-50 text-xs font-normal">F8</span>
+          </button>
+          <button
+            v-if="form.items.some(i => i.product_id && i._kotSent)"
+            @click="openCancelOrder"
+            :disabled="saving"
+            class="flex items-center justify-center gap-1 px-3 py-3.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-colors shrink-0"
+            title="Cancel entire order"
+          >
+            🚫
+          </button>
+          <button
             @click="submit('completed')"
             :disabled="saving || !form.items.filter(i => i.product_id).length"
             class="flex-1 flex items-center justify-center gap-2 py-3.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black text-base shadow-lg shadow-green-500/30 transition-all active:scale-95"
@@ -707,6 +799,10 @@
           </div>
           <div class="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 mt-3">Actions</div>
           <div class="flex items-center justify-between py-1 border-b border-gray-50">
+            <span class="text-gray-700">Send to kitchen (KOT)</span>
+            <kbd class="px-2 py-0.5 rounded bg-orange-100 border border-orange-300 text-xs font-mono font-bold text-orange-700">F8</kbd>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-gray-50">
             <span class="text-gray-700">Save draft</span>
             <kbd class="px-2 py-0.5 rounded bg-gray-100 border border-gray-300 text-xs font-mono font-bold">F9</kbd>
           </div>
@@ -756,6 +852,58 @@
     </div>
 
   </div>
+
+  <!-- Cancel item confirm -->
+  <Teleport to="body">
+    <div v-if="cancelConfirm.show" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 no-print" @click.self="cancelConfirm.show = false">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5 space-y-4">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🚫</span>
+          <div>
+            <p class="font-bold text-gray-900 text-sm">Item sent to kitchen</p>
+            <p class="text-xs text-gray-500 mt-0.5">{{ cancelConfirm.item?.product_ref?.name }}</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600">How would you like to remove this item?</p>
+        <div class="space-y-2">
+          <button @click="cancelItemWithNotice"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 transition-colors text-left">
+            <span class="text-lg">🖨️</span>
+            <div>
+              <p class="text-sm font-bold text-red-700">Cancel with kitchen notice</p>
+              <p class="text-xs text-red-400">Prints a cancel slip · removes from bill</p>
+            </div>
+          </button>
+          <button @click="cancelItemSilent"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors text-left">
+            <span class="text-lg">🗑️</span>
+            <div>
+              <p class="text-sm font-bold text-gray-700">Remove silently</p>
+              <p class="text-xs text-gray-400">No kitchen notice · just removes from bill</p>
+            </div>
+          </button>
+          <button @click="cancelConfirm.show = false"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 text-sm font-medium transition-colors">
+            Keep item
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Kitchen Ticket Modal -->
+  <KitchenTicketModal
+    :show="kotModal.show"
+    :sale="kotModal.sale"
+    :items="kotModal.items"
+    :restaurant-name="kotModal.restaurantName"
+    :now="kotModal.now"
+    :is-addon="kotModal.isAddon"
+    :type="kotModal.type"
+    @close="kotModal.show = false"
+    @printed="kotModal.pendingItems.forEach(i => { i._kotSent = true }); kotModal.pendingItems = []"
+  />
+
 </template>
 
 <script setup>
@@ -768,6 +916,7 @@ import {
   ExclamationTriangleIcon, QrCodeIcon, MagnifyingGlassIcon, ShoppingBagIcon,
   QuestionMarkCircleIcon, TableCellsIcon, ChevronDownIcon, PrinterIcon,
 } from '@heroicons/vue/24/outline'
+import KitchenTicketModal from '@/components/KitchenTicketModal.vue'
 
 const router = useRouter()
 const route  = useRoute()
@@ -788,10 +937,13 @@ const gridFocusIndex    = ref(-1)
 
 const form = reactive({
   customer_id: '', payment_method: 'cash', payment_status: 'paid',
-  discount: 0, tax: 0, tax_rate: 0, amount_paid: 0, notes: '',
-  table_number: '', status: 'completed', card_reference: '',
+  discount: 0, tax: 0, tax_rate: 0,
+  service_charge: 0, service_charge_rate: 0,
+  amount_paid: 0, notes: '',
+  order_type: 'dine_in', table_number: '', status: 'completed', card_reference: '',
   items: [],
 })
+const branchServiceChargeRate = ref(0)
 const selectedTaxId  = ref('')
 const discountType   = ref('fixed') // 'fixed' | 'percent'
 const discountInput  = ref(0)
@@ -810,7 +962,10 @@ const kbShortcutsEnabled = ref(localStorage.getItem('pos_keyboard_shortcuts') !=
 const lastReceiptId = ref(localStorage.getItem('pos_last_receipt_id') || '')
 
 const saving              = ref(false)
+const kotSending          = ref(false)
 const error               = ref('')
+const kotModal            = reactive({ show: false, sale: null, items: [], restaurantName: '', now: '', isAddon: false, pendingItems: [], type: 'kot' })
+const cancelConfirm       = reactive({ show: false, itemIndex: null, item: null })
 const showNewCustomer     = ref(false)
 const savingCustomer      = ref(false)
 const newCustomerError    = ref('')
@@ -975,7 +1130,7 @@ const gridProducts = computed(() => {
 watch(gridProducts, () => { gridFocusIndex.value = -1 })
 
 const subtotal   = computed(() => form.items.reduce((s, i) => s + (i._lineTotal || 0), 0))
-const total      = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.tax || 0)))
+const total      = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.service_charge || 0) + (form.tax || 0)))
 const totalPaid  = computed(() => splitPayment.value
   ? (Number(splitCash.value || 0) + Number(splitCard.value || 0))
   : Number(form.amount_paid || 0))
@@ -1043,7 +1198,7 @@ function newItem() {
     empty_bottle_returned: false, bottle_deposit_amount: 0, serving_ml: 0,
     open_bottle_id: null, open_bottle_ref: null,
     product_ref: null, _lineTotal: 0,
-    item_notes: '', item_notes_custom: '', selected_shot_variant: null,
+    item_notes: '', item_notes_custom: '', selected_shot_variant: null, _showNotes: false, _kotSent: false,
   }
 }
 
@@ -1100,12 +1255,29 @@ function recalc() {
   if (discountType.value === 'percent') {
     form.discount = Math.round(subtotal.value * (Number(discountInput.value || 0) / 100) * 100) / 100
   }
+  const netAfterDiscount = Math.max(0, subtotal.value - (form.discount || 0))
+  if (form.order_type === 'dine_in' && form.service_charge_rate > 0) {
+    form.service_charge = Math.round(netAfterDiscount * (form.service_charge_rate / 100) * 100) / 100
+  } else {
+    form.service_charge = 0
+  }
   if (form.tax_rate > 0) {
     form.tax = Math.round(subtotal.value * (form.tax_rate / 100) * 100) / 100
   }
   if (!amountManuallySet.value) {
     form.amount_paid = total.value
   }
+}
+
+function setOrderType(type) {
+  form.order_type = type
+  if (type === 'takeaway') {
+    form.table_number = ''
+    form.service_charge = 0
+  } else {
+    form.service_charge_rate = branchServiceChargeRate.value
+  }
+  recalc()
 }
 
 function applyTax() {
@@ -1135,6 +1307,9 @@ function resetForm() {
   form.discount          = 0
   form.tax               = 0
   form.tax_rate          = 0
+  form.service_charge    = 0
+  form.service_charge_rate = branchServiceChargeRate.value
+  form.order_type        = 'dine_in'
   form.amount_paid       = 0
   form.notes             = ''
   form.table_number      = ''
@@ -1159,18 +1334,21 @@ async function loadDraft(draft) {
   loadingDraft.value = true
   try {
     const { data } = await axios.get(`/api/sales/${draft.id}`)
-    activeDraftId.value   = data.id
-    form.customer_id      = data.customer_id || ''
-    form.payment_method   = data.payment_method || 'cash'
-    form.payment_status   = 'paid'
-    form.discount         = data.discount || 0
-    discountType.value    = 'fixed'
-    discountInput.value   = data.discount || 0
-    form.tax              = data.tax || 0
-    form.tax_rate         = data.tax_rate || 0
-    form.amount_paid      = 0
-    form.notes            = data.notes || ''
-    form.table_number     = data.table_number || ''
+    activeDraftId.value      = data.id
+    form.customer_id         = data.customer_id || ''
+    form.payment_method      = data.payment_method || 'cash'
+    form.payment_status      = 'paid'
+    form.discount            = data.discount || 0
+    discountType.value       = 'fixed'
+    discountInput.value      = data.discount || 0
+    form.tax                 = data.tax || 0
+    form.tax_rate            = data.tax_rate || 0
+    form.service_charge      = data.service_charge || 0
+    form.service_charge_rate = data.service_charge_rate || branchServiceChargeRate.value
+    form.order_type          = data.order_type || 'dine_in'
+    form.amount_paid         = 0
+    form.notes               = data.notes || ''
+    form.table_number        = data.table_number || ''
     form.items = (data.items || []).map(si => {
       const product      = si.product
       const savedPrice   = Number(si.unit_price || 0)
@@ -1196,6 +1374,8 @@ async function loadDraft(draft) {
         _lineTotal:             0,
         item_notes:             si.item_notes || '',
         item_notes_custom:      '',
+        _showNotes:             !!(si.item_notes),
+        _kotSent:               data.source !== 'customer',
       }
     })
     form.items.forEach(recalcItem)
@@ -1325,17 +1505,20 @@ async function submit(billStatus) {
     ].filter(p => p.amount > 0) : null
 
     const payload = {
-      customer_id:    form.customer_id || null,
-      payment_method: isSplit ? 'other' : form.payment_method,
-      payment_status: billStatus === 'draft' ? 'pending' : form.payment_status,
-      discount:       form.discount,
-      tax:            form.tax,
-      tax_rate:       form.tax_rate,
-      amount_paid:    billStatus === 'draft' ? 0 : (isSplit ? totalPaid.value : Number(form.amount_paid || 0)),
-      status:         billStatus,
-      table_number:   form.table_number || null,
-      notes:          form.notes,
-      card_reference: form.payment_method === 'card' && !isSplit ? (form.card_reference || null) : null,
+      customer_id:          form.customer_id || null,
+      payment_method:       isSplit ? 'other' : form.payment_method,
+      payment_status:       billStatus === 'draft' ? 'pending' : form.payment_status,
+      discount:             form.discount,
+      tax:                  form.tax,
+      tax_rate:             form.tax_rate,
+      service_charge:       form.order_type === 'dine_in' ? (form.service_charge || 0) : 0,
+      service_charge_rate:  form.order_type === 'dine_in' ? (form.service_charge_rate || 0) : 0,
+      order_type:           form.order_type,
+      amount_paid:          billStatus === 'draft' ? 0 : (isSplit ? totalPaid.value : Number(form.amount_paid || 0)),
+      status:               billStatus,
+      table_number:         form.order_type === 'dine_in' ? (form.table_number || null) : null,
+      notes:                form.notes,
+      card_reference:       form.payment_method === 'card' && !isSplit ? (form.card_reference || null) : null,
       ...(splitPayments ? { payments: splitPayments } : {}),
       items: form.items.filter(i => i.product_id).map(i => ({
         product_id:            i.product_id,
@@ -1379,6 +1562,97 @@ async function submit(billStatus) {
   } finally { saving.value = false }
 }
 
+// ── Send to Kitchen ─────────────────────────────────────
+const unsentItems = computed(() => form.items.filter(i => i.product_id && !i._kotSent))
+
+async function sendToKitchen() {
+  if (kotSending.value || saving.value) return
+  if (!unsentItems.value.length) return
+  kotSending.value = true
+  error.value = ''
+  try {
+    await submit('draft')
+    const isAddon = form.items.some(i => i.product_id && i._kotSent)
+    kotModal.sale = {
+      invoice_number: activeDraftId.value ? `#${activeDraftId.value}` : '—',
+      order_type:     form.order_type,
+      table_number:   form.table_number || '',
+    }
+    kotModal.items  = unsentItems.value.map(i => ({
+      quantity:   i.quantity,
+      name:       i.product_ref?.name ?? 'Item',
+      serving_ml: i.serving_ml || 0,
+      notes:      [i.item_notes, i.item_notes_custom].filter(Boolean).join(', '),
+    }))
+    kotModal.type         = 'kot'
+    kotModal.pendingItems = [...unsentItems.value]
+    kotModal.isAddon      = isAddon
+    kotModal.now          = new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    kotModal.show         = true
+  } finally {
+    kotSending.value = false
+  }
+}
+
+// ── Item cancellation ───────────────────────────────────
+function openCancelConfirm(index, item) {
+  cancelConfirm.itemIndex = index
+  cancelConfirm.item      = item
+  cancelConfirm.show      = true
+}
+
+function cancelItemWithNotice() {
+  const item = cancelConfirm.item
+  const index = cancelConfirm.itemIndex
+  cancelConfirm.show = false
+  // Open cancel KOT modal with just this item
+  kotModal.type    = 'cancel'
+  kotModal.isAddon = false
+  kotModal.sale    = {
+    invoice_number: activeDraftId.value ? `#${activeDraftId.value}` : '—',
+    order_type:     form.order_type,
+    table_number:   form.table_number || '',
+  }
+  kotModal.items   = [{
+    quantity:   item.quantity,
+    name:       item.product_ref?.name ?? 'Item',
+    serving_ml: item.serving_ml || 0,
+    notes:      [item.item_notes, item.item_notes_custom].filter(Boolean).join(', '),
+  }]
+  kotModal.pendingItems = [] // cancel tickets don't mark anything as sent
+  kotModal.now   = new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  kotModal.show  = true
+  // Remove from bill after modal opens
+  removeItem(index)
+}
+
+function cancelItemSilent() {
+  const index = cancelConfirm.itemIndex
+  cancelConfirm.show = false
+  removeItem(index)
+}
+
+function openCancelOrder() {
+  const sentItems = form.items.filter(i => i.product_id && i._kotSent)
+  if (!sentItems.length) return
+  kotModal.type    = 'cancel'
+  kotModal.isAddon = false
+  kotModal.sale    = {
+    invoice_number: activeDraftId.value ? `#${activeDraftId.value}` : '—',
+    order_type:     form.order_type,
+    table_number:   form.table_number || '',
+  }
+  kotModal.items = sentItems.map(i => ({
+    quantity:   i.quantity,
+    name:       i.product_ref?.name ?? 'Item',
+    serving_ml: i.serving_ml || 0,
+    notes:      [i.item_notes, i.item_notes_custom].filter(Boolean).join(', '),
+  }))
+  kotModal.pendingItems = []
+  kotModal.now  = new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  kotModal.show = true
+}
+
 // ── Keyboard shortcuts ──────────────────────────────────
 function isTypingInInput() {
   const tag = document.activeElement?.tagName?.toLowerCase()
@@ -1390,6 +1664,7 @@ function handleKeydown(e) {
   if (e.key === 'F1') { e.preventDefault(); searchInputRef.value?.focus(); searchInputRef.value?.select(); return }
   if (e.key === 'F2') { e.preventDefault(); barcodeInputRef.value?.focus(); barcodeInputRef.value?.select(); return }
   if (e.key === 'F3') { e.preventDefault(); amountInputRef.value?.focus(); amountInputRef.value?.select(); return }
+  if (e.key === 'F8') { e.preventDefault(); if (!saving.value && !kotSending.value && form.items.some(i => i.product_id)) sendToKitchen(); return }
   if (e.key === 'F9') { e.preventDefault(); if (!saving.value && form.items.some(i => i.product_id)) submit('draft'); return }
   if (e.key === 'F10') { e.preventDefault(); if (!saving.value && form.items.some(i => i.product_id)) submit('completed'); return }
   if (e.key === 'Escape') {
@@ -1478,18 +1753,23 @@ function lkr(val) {
 }
 
 onMounted(async () => {
-  const [p, c, t, tb, drafts] = await Promise.all([
+  const [p, c, t, tb, drafts, settings] = await Promise.all([
     axios.get('/api/products', { params: { per_page: 1000 } }),
     axios.get('/api/customers/all'),
     axios.get('/api/tax-settings'),
     axios.get('/api/tables/all'),
     axios.get('/api/sales', { params: { status: 'draft', per_page: 50, date_from: new Date().toISOString().slice(0, 10), date_to: new Date().toISOString().slice(0, 10) } }),
+    axios.get('/api/settings/restaurant').catch(() => ({ data: {} })),
   ])
   products.value        = p.data.data
   customers.value       = c.data
   taxes.value           = t.data.filter(x => x.is_active)
   availableTables.value = tb.data
   draftBills.value      = drafts.data.data
+
+  branchServiceChargeRate.value = settings.data?.service_charge_rate ?? 0
+  form.service_charge_rate      = branchServiceChargeRate.value
+  kotModal.restaurantName       = settings.data?.name ?? ''
 
   const hasLiquor = products.value.some(p => p.category?.name === 'Liquor')
   if (hasLiquor) activeCategory.value = 'Liquor'

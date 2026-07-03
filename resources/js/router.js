@@ -25,6 +25,7 @@ const routes = [
             { path: 'sales',          name: 'sales',          component: () => import('@/pages/Sales.vue') },
             { path: 'sales/new',      name: 'sales.new',      component: () => import('@/pages/NewSale2.vue') },
             { path: 'sales/:id/edit', name: 'sales.edit',     component: () => import('@/pages/EditDraft.vue') },
+            { path: 'sales/:id/kot',  name: 'sales.kot',     component: () => import('@/pages/KitchenTicket.vue') },
             { path: 'sales/:id',      name: 'sales.receipt',  component: () => import('@/pages/SaleReceipt.vue') },
             { path: 'tables',         name: 'tables',         component: () => import('@/pages/Tables.vue') },
             { path: 'purchases', name: 'purchases',  component: () => import('@/pages/Purchases.vue') },
@@ -45,6 +46,19 @@ const routes = [
             { path: 'opening-balance', name: 'opening-balance', component: () => import('@/pages/OpeningBalance.vue') },
         ],
     },
+    // Public customer self-order (no auth)
+    {
+        path: '/menu/:table',
+        name: 'menu',
+        component: () => import('@/pages/CustomerMenu.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/menu/:table/confirm',
+        name: 'menu.confirm',
+        component: () => import('@/pages/CustomerOrderConfirm.vue'),
+        meta: { public: true },
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
@@ -56,6 +70,7 @@ const router = createRouter({
 router.beforeEach((to) => {
     NProgress.start()
     const auth = useAuthStore()
+    if (to.meta.public) return          // allow through without auth
     if (to.meta.requiresAuth && !auth.token) return '/login'
     if (to.meta.guest && auth.token) return '/'
 })

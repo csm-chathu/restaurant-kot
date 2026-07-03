@@ -57,6 +57,7 @@ class SaleController extends Controller
             ->when($request->filled('status'), fn($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('payment_status'), fn($q) => $q->where('payment_status', $request->input('payment_status')))
             ->when($request->filled('payment_method'), fn($q) => $q->where('payment_method', $request->input('payment_method')))
+            ->when($request->filled('order_type'), fn($q) => $q->where('order_type', $request->input('order_type')))
             ->when($request->filled('date_from'), fn($q) => $q->whereDate('sold_at', '>=', $request->input('date_from')))
             ->when($request->filled('date_to'), fn($q) => $q->whereDate('sold_at', '<=', $request->input('date_to')));
 
@@ -103,9 +104,12 @@ class SaleController extends Controller
             'items.*.bottle_deposit_amount' => 'nullable|numeric|min:0',
             'items.*.serving_ml'       => 'nullable|numeric|min:0',
             'items.*.open_bottle_id'   => 'nullable|exists:open_bottles,id',
+            'items.*.item_notes'       => 'nullable|string|max:500',
             'discount'                 => 'nullable|numeric|min:0',
             'tax'                      => 'nullable|numeric|min:0',
             'tax_rate'                 => 'nullable|numeric|min:0|max:100',
+            'service_charge'           => 'nullable|numeric|min:0',
+            'service_charge_rate'      => 'nullable|numeric|min:0|max:100',
             'payment_method'           => 'required_without:payments|in:cash,card,bank_transfer,cheque,other',
             'payment_status'           => 'nullable|in:pending,paid,partial,refunded',
             'amount_paid'              => 'nullable|numeric|min:0',
@@ -114,6 +118,7 @@ class SaleController extends Controller
             'payments.*.amount'        => 'required_with:payments|numeric|min:0.01',
             'payments.*.notes'         => 'nullable|string|max:255',
             'status'                   => 'nullable|in:draft,completed',
+            'order_type'               => 'nullable|in:dine_in,takeaway',
             'table_number'             => 'nullable|string|max:50',
             'card_reference'           => 'nullable|string|max:100',
             'notes'                    => 'nullable|string',
@@ -194,9 +199,10 @@ class SaleController extends Controller
                 $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal', 'goldV', 'gemV', 'mc', 'wastage', 'depositCollected', 'item');
             }
 
-            $discount = $data['discount'] ?? 0;
-            $tax      = $data['tax'] ?? 0;
-            $total    = $subtotal - $discount + $tax;
+            $discount       = $data['discount'] ?? 0;
+            $tax            = $data['tax'] ?? 0;
+            $serviceCharge  = $data['service_charge'] ?? 0;
+            $total          = $subtotal - $discount + $serviceCharge + $tax;
             $payments = $this->normalizePayments($data, $isDraft);
             $amountPaid = $isDraft ? 0 : round((float) $payments->sum('amount'), 2);
             $paymentStatus = $isDraft
@@ -228,12 +234,15 @@ class SaleController extends Controller
                 'discount'              => $discount,
                 'tax'                   => $tax,
                 'tax_rate'              => $data['tax_rate'] ?? 0,
+                'service_charge'        => $serviceCharge,
+                'service_charge_rate'   => $data['service_charge_rate'] ?? 0,
                 'total'                 => $total,
                 'payment_method'        => $paymentMethod,
                 'card_reference'        => ($paymentMethod === 'card') ? ($data['card_reference'] ?? null) : null,
                 'payment_status'        => $paymentStatus,
                 'amount_paid'           => $amountPaid,
                 'status'                => $isDraft ? 'draft' : 'completed',
+                'order_type'            => $data['order_type'] ?? 'dine_in',
                 'table_number'          => $data['table_number'] ?? null,
                 'notes'                 => $data['notes'] ?? null,
                 'sold_at'               => !empty($data['sold_at']) ? Carbon::parse($data['sold_at']) : now(),
@@ -250,6 +259,7 @@ class SaleController extends Controller
                     'discount'        => $i['itemDisc'],
                     'serving_ml'      => (float) ($i['item']['serving_ml'] ?? 0),
                     'open_bottle_id'  => $i['item']['open_bottle_id'] ?? null,
+                    'item_notes'      => $i['item']['item_notes'] ?? null,
                     'total'           => $i['lineTotal'],
                 ]);
 
@@ -498,9 +508,13 @@ class SaleController extends Controller
             'items.*.bottle_deposit_amount' => 'nullable|numeric|min:0',
             'items.*.serving_ml'       => 'nullable|numeric|min:0',
             'items.*.open_bottle_id'   => 'nullable|exists:open_bottles,id',
+            'items.*.item_notes'       => 'nullable|string|max:500',
             'discount'                 => 'nullable|numeric|min:0',
             'tax'                      => 'nullable|numeric|min:0',
             'tax_rate'                 => 'nullable|numeric|min:0|max:100',
+            'service_charge'           => 'nullable|numeric|min:0',
+            'service_charge_rate'      => 'nullable|numeric|min:0|max:100',
+            'order_type'               => 'nullable|in:dine_in,takeaway',
             'table_number'             => 'nullable|string|max:50',
             'card_reference'           => 'nullable|string|max:100',
             'notes'                    => 'nullable|string',
@@ -518,8 +532,9 @@ class SaleController extends Controller
 
         DB::beginTransaction();
         try {
-            $discount = $data['discount'] ?? 0;
-            $tax      = $data['tax'] ?? 0;
+            $discount      = $data['discount'] ?? 0;
+            $tax           = $data['tax'] ?? 0;
+            $serviceCharge = $data['service_charge'] ?? 0;
             $subtotal = 0;
 
             $itemData = [];
@@ -550,7 +565,7 @@ class SaleController extends Controller
                 $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal', 'depositCollected', 'item');
             }
 
-            $total         = $subtotal - $discount + $tax;
+            $total         = $subtotal - $discount + $serviceCharge + $tax;
             $payments      = $this->normalizePayments($data, !$isCompleting);
             $amountPaid    = $isCompleting ? round((float) $payments->sum('amount'), 2) : 0;
             $paymentStatus = $isCompleting
@@ -566,20 +581,23 @@ class SaleController extends Controller
             }
 
             $sale->update([
-                'customer_id'    => $data['customer_id'] ?? null,
-                'subtotal'       => $subtotal,
-                'discount'       => $discount,
-                'tax'            => $tax,
-                'tax_rate'       => $data['tax_rate'] ?? 0,
-                'total'          => $total,
-                'table_number'   => $data['table_number'] ?? null,
-                'card_reference' => ($paymentMethod === 'card') ? ($data['card_reference'] ?? null) : null,
-                'notes'          => $data['notes'] ?? null,
-                'status'         => $isCompleting ? 'completed' : 'draft',
-                'payment_method' => $paymentMethod,
-                'payment_status' => $paymentStatus,
-                'amount_paid'    => $amountPaid,
-                'sold_at'        => $isCompleting ? now() : $sale->sold_at,
+                'customer_id'         => $data['customer_id'] ?? null,
+                'subtotal'            => $subtotal,
+                'discount'            => $discount,
+                'tax'                 => $tax,
+                'tax_rate'            => $data['tax_rate'] ?? 0,
+                'service_charge'      => $serviceCharge,
+                'service_charge_rate' => $data['service_charge_rate'] ?? 0,
+                'total'               => $total,
+                'order_type'          => $data['order_type'] ?? $sale->order_type,
+                'table_number'        => $data['table_number'] ?? null,
+                'card_reference'      => ($paymentMethod === 'card') ? ($data['card_reference'] ?? null) : null,
+                'notes'               => $data['notes'] ?? null,
+                'status'              => $isCompleting ? 'completed' : 'draft',
+                'payment_method'      => $paymentMethod,
+                'payment_status'      => $paymentStatus,
+                'amount_paid'         => $amountPaid,
+                'sold_at'             => $isCompleting ? now() : $sale->sold_at,
             ]);
 
             $this->syncPayments($sale, $payments);
@@ -594,6 +612,7 @@ class SaleController extends Controller
                     'discount'       => $i['itemDisc'],
                     'serving_ml'     => (float) ($i['item']['serving_ml'] ?? 0),
                     'open_bottle_id' => $i['item']['open_bottle_id'] ?? null,
+                    'item_notes'     => $i['item']['item_notes'] ?? null,
                     'total'          => $i['lineTotal'],
                 ]);
 

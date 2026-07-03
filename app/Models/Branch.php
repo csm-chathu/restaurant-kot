@@ -10,11 +10,12 @@ class Branch extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'code', 'address', 'city', 'country', 'logo_path', 'logo_public_id', 'is_active', 'shop_type',
+        'name', 'code', 'address', 'city', 'country', 'logo_path', 'logo_public_id', 'is_active', 'shop_type', 'service_charge_rate',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'            => 'boolean',
+        'service_charge_rate'  => 'float',
     ];
 
     public function getLogoUrlAttribute(): ?string

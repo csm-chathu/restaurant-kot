@@ -27,6 +27,11 @@
           <option value="card">Card</option>
           <option value="other">Other</option>
         </select>
+        <select v-model="orderTypeFilter" class="form-input w-32" @change="resetAndFetch">
+          <option value="">All orders</option>
+          <option value="dine_in">Dine-in</option>
+          <option value="takeaway">Takeaway</option>
+        </select>
         <template v-if="!isCashier">
           <div class="flex items-center gap-1">
             <button @click="setQuick('week')"
@@ -40,7 +45,7 @@
               class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors">This Month</button>
           </div>
         </template>
-        <button v-if="search || statusFilter || quickFilter" @click="clearFilters"
+        <button v-if="search || statusFilter || quickFilter || orderTypeFilter" @click="clearFilters"
           class="text-xs text-gray-400 hover:text-gray-600 underline">Clear</button>
       </div>
       <router-link :to="newBillRoute"
@@ -134,6 +139,7 @@
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th class="table-th w-32">Table</th>
+              <th class="table-th w-28">Order Type</th>
               <th class="table-th w-28">Date</th>
               <th class="table-th w-36 text-right">Total</th>
               <th class="table-th w-32">Payment</th>
@@ -143,7 +149,7 @@
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="loading">
-              <td colspan="6" class="table-td text-center py-10 text-gray-400">
+              <td colspan="7" class="table-td text-center py-10 text-gray-400">
                 <div class="flex items-center justify-center gap-2">
                   <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
                 </div>
@@ -155,6 +161,16 @@
                 <td class="table-td">
                   <span v-if="s.table_number" class="text-sm font-medium text-gray-800">{{ s.table_number }}</span>
                   <span v-else class="text-xs text-gray-400">—</span>
+                </td>
+                <td class="table-td">
+                  <span v-if="s.order_type === 'takeaway'"
+                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                    🥡 Takeaway
+                  </span>
+                  <span v-else
+                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    🍽️ Dine-in
+                  </span>
                 </td>
                 <td class="table-td text-xs text-gray-500">
                   <div>{{ formatDate(s.sold_at) }}</div>
@@ -191,7 +207,7 @@
                 </td>
               </tr>
               <tr v-if="!sales.data?.length">
-                <td colspan="6" class="table-td text-center py-12">
+                <td colspan="7" class="table-td text-center py-12">
                   <div class="flex flex-col items-center gap-2 text-gray-400">
                     <ReceiptPercentIcon class="w-10 h-10 opacity-30" />
                     <span>No sales found</span>
@@ -257,6 +273,7 @@ const dateFrom             = ref('')
 const dateTo               = ref('')
 const statusFilter         = ref('')
 const paymentMethodFilter  = ref('')
+const orderTypeFilter      = ref('')
 const confirmDelete        = ref(null)
 const confirmMessage       = ref('')
 const quickFilter          = ref('')
@@ -301,6 +318,7 @@ async function fetchData() {
         date_to:        dateTo.value,
         status:         statusFilter.value,
         payment_method: paymentMethodFilter.value,
+        order_type:     orderTypeFilter.value,
       },
     })
     sales.value = data
@@ -312,7 +330,7 @@ async function fetchData() {
 }
 
 function clearFilters() {
-  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''; paymentMethodFilter.value = ''; quickFilter.value = ''
+  search.value = ''; dateFrom.value = ''; dateTo.value = ''; statusFilter.value = ''; paymentMethodFilter.value = ''; orderTypeFilter.value = ''; quickFilter.value = ''
   page.value = 1; fetchData()
 }
 

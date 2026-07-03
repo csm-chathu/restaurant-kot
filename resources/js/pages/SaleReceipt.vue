@@ -132,6 +132,15 @@
             <span>Cashier :</span><span style="float:right;">{{ sale.user?.name ?? '—' }}</span>
           </div>
           <div class="flex-row">
+            <span>Order   :</span>
+            <span style="float:right; font-weight:bold; letter-spacing:0.5px;">
+              {{ sale.order_type === 'takeaway' ? 'TAKEAWAY' : 'DINE IN' }}
+            </span>
+          </div>
+          <div v-if="sale.order_type === 'dine_in' && sale.table_number" class="flex-row">
+            <span>Table   :</span><span style="float:right;">{{ sale.table_number }}</span>
+          </div>
+          <div class="flex-row">
             <span>Payment :</span><span style="float:right; text-transform:capitalize;">{{ paymentSummary }}</span>
           </div>
           <div class="flex-row">
@@ -205,6 +214,9 @@
           </div>
           <div v-if="Number(sale.discount) > 0" style="display:flex; justify-content:space-between; margin-bottom:2px;">
             <span>Discount</span><span>-LKR {{ lkr(sale.discount) }}</span>
+          </div>
+          <div v-if="Number(sale.service_charge) > 0" style="display:flex; justify-content:space-between; margin-bottom:2px;">
+            <span>Service Charge ({{ sale.service_charge_rate }}%)</span><span>+LKR {{ lkr(sale.service_charge) }}</span>
           </div>
           <div v-if="Number(sale.tax) > 0" style="display:flex; justify-content:space-between; margin-bottom:2px;">
             <span>Tax ({{ sale.tax_rate }}%)</span><span>+LKR {{ lkr(sale.tax) }}</span>

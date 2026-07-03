@@ -108,6 +108,11 @@
           <label class="form-label">Country</label>
           <input v-model="form.country" class="form-input" maxlength="100" />
         </div>
+        <div>
+          <label class="form-label">Service Charge Rate (%)</label>
+          <p class="text-xs text-gray-500 mb-1">Applied automatically on Dine-in orders. Set to 0 to disable.</p>
+          <input v-model.number="form.service_charge_rate" type="number" min="0" max="100" step="0.5" class="form-input" />
+        </div>
       </div>
 
       <div v-if="previewLogo || currentLogo" class="pt-2">
@@ -142,6 +147,7 @@ const form = reactive({
   city: '',
   country: '',
   shop_type: 'restaurant',
+  service_charge_rate: 0,
 })
 
 const branches = ref([])
@@ -186,6 +192,7 @@ async function load() {
   form.city = data.city ?? ''
   form.country = data.country ?? ''
   form.shop_type = data.shop_type ?? 'restaurant'
+  form.service_charge_rate = data.service_charge_rate ?? 0
   branchCode.value = data.code ?? ''
   currentLogo.value = data.logo_url ?? ''
   previewLogo.value = ''
@@ -213,6 +220,7 @@ async function save() {
     payload.append('city', form.city || '')
     payload.append('country', form.country || '')
     payload.append('shop_type', form.shop_type || 'restaurant')
+    payload.append('service_charge_rate', form.service_charge_rate ?? 0)
     if (canSelectBranch.value && selectedBranchId.value) payload.append('branch_id', selectedBranchId.value)
     if (logoFile.value) payload.append('logo', logoFile.value)
 

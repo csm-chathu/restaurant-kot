@@ -22,6 +22,7 @@ class RestaurantSettingController extends Controller
             'country' => $branch->country,
             'logo_url' => $branch->logo_url,
             'shop_type' => $branch->shop_type ?? 'restaurant',
+            'service_charge_rate' => (float) ($branch->service_charge_rate ?? 0),
         ]);
     }
 
@@ -39,6 +40,7 @@ class RestaurantSettingController extends Controller
             'country' => 'nullable|string|max:100',
             'logo' => 'nullable|image|max:2048',
             'shop_type' => 'nullable|in:restaurant,hotel,retail,cycle',
+            'service_charge_rate' => 'nullable|numeric|min:0|max:100',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -63,6 +65,7 @@ class RestaurantSettingController extends Controller
                 'country' => $branch->country,
                 'logo_url' => $branch->logo_url,
                 'shop_type' => $branch->shop_type ?? 'restaurant',
+                'service_charge_rate' => (float) ($branch->service_charge_rate ?? 0),
             ],
         ]);
     }

@@ -94,6 +94,45 @@
             {{ sidebarHidden ? 'Exit Full Screen' : 'Full Screen' }}
           </button>
           <span>{{ currentDate }}</span>
+
+          <!-- Order notification bell -->
+          <div class="relative" ref="bellRef">
+            <button @click="showNotifPanel = !showNotifPanel"
+              class="relative p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-colors">
+              <BellIcon class="w-5 h-5" />
+              <span v-if="unreadCount > 0"
+                class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] font-black flex items-center justify-center leading-none">
+                {{ unreadCount > 9 ? '9+' : unreadCount }}
+              </span>
+            </button>
+
+            <!-- Dropdown -->
+            <div v-if="showNotifPanel"
+              class="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span class="font-bold text-gray-800 text-sm">Customer Orders</span>
+                <button v-if="notifications.length" @click="clearNotifications"
+                  class="text-xs text-gray-400 hover:text-red-500 transition-colors">Clear all</button>
+              </div>
+              <div class="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                <div v-if="!notifications.length" class="py-10 text-center text-sm text-gray-400">
+                  No new orders yet
+                </div>
+                <div v-for="n in notifications" :key="n.id"
+                  @click="openOrder(n)"
+                  class="flex items-start gap-3 px-4 py-3 hover:bg-amber-50 cursor-pointer transition-colors"
+                  :class="{ 'bg-amber-50/30': !n.read }">
+                  <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-base">🛎️</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-gray-800">Table {{ n.table_number }}</p>
+                    <p class="text-xs text-gray-500">{{ n.items_count }} item{{ n.items_count !== 1 ? 's' : '' }} · LKR {{ lkrFmt(n.total) }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ n.invoice_number }} · {{ n.at }}</p>
+                  </div>
+                  <div v-if="!n.read" class="w-2 h-2 bg-amber-500 rounded-full mt-2 shrink-0"></div>
+                </div>
+              </div>
+            </div>
+          </div>
           <button @click="openShiftModal"
             :class="currentShift
               ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
@@ -132,10 +171,11 @@
   <GettingStarted v-model="showGuide" />
   <ShiftModal v-if="showShiftModal" :current-shift="currentShift" :required="shiftRequired || shiftStale" :stale="shiftStale" @close="ui.closeShiftModal()" @shifted="onShifted" />
   <CashOutModal v-if="showCashOutModal" @close="showCashOutModal = false" @saved="showCashOutModal = false" />
+  <ToastContainer ref="toastRef" />
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -143,6 +183,7 @@ import axios from 'axios'
 import GettingStarted from '@/components/GettingStarted.vue'
 import ShiftModal from '@/components/ShiftModal.vue'
 import CashOutModal from '@/components/CashOutModal.vue'
+import ToastContainer from '@/components/ToastContainer.vue'
 import {
   HomeIcon, CubeIcon, TagIcon, UsersIcon,
   TruckIcon, ShoppingCartIcon, ArchiveBoxIcon,
@@ -150,7 +191,7 @@ import {
   UserGroupIcon, ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon, CurrencyDollarIcon, FireIcon, TableCellsIcon, ChartBarIcon, Cog6ToothIcon, BanknotesIcon,
   ChevronDoubleLeftIcon, ChevronDoubleRightIcon,
-  ArrowsPointingOutIcon, ArrowsPointingInIcon,
+  ArrowsPointingOutIcon, ArrowsPointingInIcon, BellIcon,
 } from '@heroicons/vue/24/outline'
 
 const auth      = useAuthStore()
@@ -170,6 +211,68 @@ const restaurant = ref({ name: 'Liquor Shop + Bar', logo_url: '', address: '' })
 
 const collapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 const sidebarHidden = ref(false)
+
+// Order notifications
+const notifications  = ref([])
+const showNotifPanel = ref(false)
+const bellRef        = ref(null)
+const toastRef       = ref(null)
+let   echoChannel    = null
+let   notifId        = 0
+
+const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
+
+function lkrFmt(val) {
+  return Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function clearNotifications() {
+  notifications.value = []
+}
+
+function openOrder(n) {
+  n.read = true
+  showNotifPanel.value = false
+  router.push({ name: 'sales.new', query: { draft: n.sale_id } })
+}
+
+function handleClickOutsideBell(e) {
+  if (bellRef.value && !bellRef.value.contains(e.target)) {
+    if (showNotifPanel.value) {
+      // mark all read when closing
+      notifications.value.forEach(n => { n.read = true })
+    }
+    showNotifPanel.value = false
+  }
+}
+
+function subscribeToOrders() {
+  if (!window.Echo || !auth.user?.branch_id) {
+    console.warn('[Echo] not ready or no branch_id', { Echo: !!window.Echo, branch_id: auth.user?.branch_id })
+    return
+  }
+  const channelName = `branch.${auth.user.branch_id}.orders`
+  console.log('[Echo] subscribing to', channelName)
+  echoChannel = window.Echo.channel(channelName)
+    .listen('.customer.order.placed', (data) => {
+      console.log('[Echo] order received', data)
+      notifications.value.unshift({ id: ++notifId, read: false, ...data })
+      if (notifications.value.length > 50) notifications.value.pop()
+      toastRef.value?.add({
+        type:    'order',
+        icon:    '🛎️',
+        title:   `New order — Table ${data.table_number}`,
+        message: `${data.items_count} item${data.items_count !== 1 ? 's' : ''} · LKR ${lkrFmt(data.total)}`,
+        duration: 8000,
+      })
+    })
+}
+
+function unsubscribeFromOrders() {
+  if (!window.Echo || !echoChannel) return
+  window.Echo.leaveChannel(`branch.${auth.user?.branch_id}.orders`)
+  echoChannel = null
+}
 
 watch(() => route.name, (name) => {
   if (name === 'sales.new') collapsed.value = true
@@ -315,5 +418,12 @@ onMounted(async () => {
       }
     }
   }
+  subscribeToOrders()
+  document.addEventListener('click', handleClickOutsideBell)
+})
+
+onUnmounted(() => {
+  unsubscribeFromOrders()
+  document.removeEventListener('click', handleClickOutsideBell)
 })
 </script>

@@ -147,8 +147,28 @@
 
         <!-- Table + Customer -->
         <div class="px-3 py-2.5 bg-white border-b border-gray-200 shrink-0 space-y-2">
-          <div class="grid grid-cols-2 gap-2">
-            <div>
+          <!-- Order type toggle -->
+          <div class="flex gap-1">
+            <button
+              type="button"
+              @click="setOrderType('dine_in')"
+              class="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+              :class="form.order_type === 'dine_in'
+                ? 'bg-amber-500 text-white border-amber-500'
+                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'"
+            >Dine-in</button>
+            <button
+              type="button"
+              @click="setOrderType('takeaway')"
+              class="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+              :class="form.order_type === 'takeaway'
+                ? 'bg-blue-500 text-white border-blue-500'
+                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'"
+            >Takeaway</button>
+          </div>
+
+          <div :class="form.order_type === 'dine_in' ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'">
+            <div v-if="form.order_type === 'dine_in'">
               <label class="text-xs font-medium text-gray-500 mb-1 block">Table</label>
               <select v-model="form.table_number" class="form-input text-sm py-1.5">
                 <option value="">Walk-in</option>
@@ -343,13 +363,14 @@
               <div class="flex items-center gap-2 text-xs text-gray-400">
                 <span>TOTAL</span>
                 <span v-if="form.discount > 0" class="text-red-400">−{{ lkr(form.discount) }}</span>
+                <span v-if="form.order_type === 'dine_in' && form.service_charge > 0" class="text-amber-500">+SC {{ form.service_charge_rate }}%</span>
                 <span v-if="form.tax > 0" class="text-blue-400">+tax {{ form.tax_rate }}%</span>
                 <span class="text-gray-300">{{ showPricingDetails ? '▲' : '▼' }}</span>
               </div>
               <span class="text-xl font-bold text-amber-600">LKR {{ lkr(total) }}</span>
             </button>
 
-            <!-- Collapsible: subtotal / discount / tax -->
+            <!-- Collapsible: subtotal / discount / service charge / tax -->
             <div v-if="showPricingDetails" class="px-3 pb-2 space-y-1.5 border-t border-gray-100 bg-gray-50">
               <div class="flex justify-between text-xs text-gray-500 pt-1.5">
                 <span>Subtotal</span><span>LKR {{ lkr(subtotal) }}</span>
@@ -375,6 +396,11 @@
                   −LKR {{ lkr(form.discount) }}
                   <span v-if="discountType === 'percent'" class="text-gray-400">({{ discountInput }}%)</span>
                 </span>
+              </div>
+              <div v-if="form.order_type === 'dine_in' && form.service_charge_rate > 0"
+                class="flex justify-between text-xs text-amber-600 font-medium">
+                <span>Service Charge ({{ form.service_charge_rate }}%)</span>
+                <span>+LKR {{ lkr(form.service_charge) }}</span>
               </div>
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-1.5">
@@ -734,10 +760,13 @@ const GRID_COLS = { base: 3, xl: 4, '2xl': 5 }
 // Form
 const form = reactive({
   customer_id: '', payment_method: 'cash', payment_status: 'paid',
-  discount: 0, tax: 0, tax_rate: 0, amount_paid: 0, notes: '',
-  table_number: '', status: 'completed', card_reference: '',
+  discount: 0, tax: 0, tax_rate: 0,
+  service_charge: 0, service_charge_rate: 0,
+  amount_paid: 0, notes: '',
+  order_type: 'dine_in', table_number: '', status: 'completed', card_reference: '',
   items: [],
 })
+const branchServiceChargeRate = ref(0)
 const selectedTaxId  = ref('')
 const discountType   = ref('fixed') // 'fixed' | 'percent'
 const discountInput  = ref(0)
@@ -871,7 +900,7 @@ watch(gridProducts, () => { gridFocusIndex.value = -1 })
 const selectedCustomer = computed(() => customers.value.find(c => c.id == form.customer_id) ?? null)
 
 const subtotal   = computed(() => form.items.reduce((s, i) => s + (i._lineTotal || 0), 0))
-const total      = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.tax || 0)))
+const total      = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.service_charge || 0) + (form.tax || 0)))
 const totalPaid  = computed(() => splitPayment.value
   ? (Number(splitCash.value || 0) + Number(splitCard.value || 0))
   : Number(form.amount_paid || 0))
@@ -996,10 +1025,27 @@ function recalc() {
   if (discountType.value === 'percent') {
     form.discount = Math.round(subtotal.value * (Number(discountInput.value || 0) / 100) * 100) / 100
   }
+  const netAfterDiscount = Math.max(0, subtotal.value - (form.discount || 0))
+  if (form.order_type === 'dine_in' && form.service_charge_rate > 0) {
+    form.service_charge = Math.round(netAfterDiscount * (form.service_charge_rate / 100) * 100) / 100
+  } else {
+    form.service_charge = 0
+  }
   if (form.tax_rate > 0) {
     form.tax = Math.round(subtotal.value * (form.tax_rate / 100) * 100) / 100
   }
   form.amount_paid = total.value
+}
+
+function setOrderType(type) {
+  form.order_type = type
+  if (type === 'takeaway') {
+    form.table_number = ''
+    form.service_charge = 0
+  } else {
+    form.service_charge_rate = branchServiceChargeRate.value
+  }
+  recalc()
 }
 
 function applyTax() {
@@ -1028,6 +1074,9 @@ function resetForm() {
   form.discount          = 0
   form.tax               = 0
   form.tax_rate          = 0
+  form.service_charge    = 0
+  form.service_charge_rate = branchServiceChargeRate.value
+  form.order_type        = 'dine_in'
   form.amount_paid       = 0
   form.notes             = ''
   form.table_number      = ''
@@ -1050,18 +1099,21 @@ async function loadDraft(draft) {
   loadingDraft.value = true
   try {
     const { data } = await axios.get(`/api/sales/${draft.id}`)
-    activeDraftId.value   = data.id
-    form.customer_id      = data.customer_id || ''
-    form.payment_method   = data.payment_method || 'cash'
-    form.payment_status   = 'paid'
-    form.discount         = data.discount || 0
-    discountType.value    = 'fixed'
-    discountInput.value   = data.discount || 0
-    form.tax              = data.tax || 0
-    form.tax_rate         = data.tax_rate || 0
-    form.amount_paid      = 0
-    form.notes            = data.notes || ''
-    form.table_number     = data.table_number || ''
+    activeDraftId.value      = data.id
+    form.customer_id         = data.customer_id || ''
+    form.payment_method      = data.payment_method || 'cash'
+    form.payment_status      = 'paid'
+    form.discount            = data.discount || 0
+    discountType.value       = 'fixed'
+    discountInput.value      = data.discount || 0
+    form.tax                 = data.tax || 0
+    form.tax_rate            = data.tax_rate || 0
+    form.service_charge      = data.service_charge || 0
+    form.service_charge_rate = data.service_charge_rate || branchServiceChargeRate.value
+    form.order_type          = data.order_type || 'dine_in'
+    form.amount_paid         = 0
+    form.notes               = data.notes || ''
+    form.table_number        = data.table_number || ''
     form.items = (data.items || []).map(si => ({
       product_id:            si.product_id,
       product_search:        si.product?.name || '',
@@ -1185,17 +1237,20 @@ async function submit(billStatus) {
     ].filter(p => p.amount > 0) : null
 
     const payload = {
-      customer_id:    form.customer_id || null,
-      payment_method: isSplit ? 'other' : form.payment_method,
-      payment_status: billStatus === 'draft' ? 'pending' : form.payment_status,
-      discount:       form.discount,
-      tax:            form.tax,
-      tax_rate:       form.tax_rate,
-      amount_paid:    billStatus === 'draft' ? 0 : (isSplit ? totalPaid.value : Number(form.amount_paid || 0)),
-      status:         billStatus,
-      table_number:   form.table_number || null,
-      notes:          form.notes,
-      card_reference: form.payment_method === 'card' && !isSplit ? (form.card_reference || null) : null,
+      customer_id:          form.customer_id || null,
+      payment_method:       isSplit ? 'other' : form.payment_method,
+      payment_status:       billStatus === 'draft' ? 'pending' : form.payment_status,
+      discount:             form.discount,
+      tax:                  form.tax,
+      tax_rate:             form.tax_rate,
+      service_charge:       form.order_type === 'dine_in' ? (form.service_charge || 0) : 0,
+      service_charge_rate:  form.order_type === 'dine_in' ? (form.service_charge_rate || 0) : 0,
+      order_type:           form.order_type,
+      amount_paid:          billStatus === 'draft' ? 0 : (isSplit ? totalPaid.value : Number(form.amount_paid || 0)),
+      status:               billStatus,
+      table_number:         form.order_type === 'dine_in' ? (form.table_number || null) : null,
+      notes:                form.notes,
+      card_reference:       form.payment_method === 'card' && !isSplit ? (form.card_reference || null) : null,
       ...(splitPayments ? { payments: splitPayments } : {}),
       items: form.items.filter(i => i.product_id).map(i => ({
         product_id:            i.product_id,
@@ -1389,18 +1444,22 @@ function lkr(val) {
 }
 
 onMounted(async () => {
-  const [p, c, t, tb, drafts] = await Promise.all([
+  const [p, c, t, tb, drafts, settings] = await Promise.all([
     axios.get('/api/products', { params: { per_page: 1000 } }),
     axios.get('/api/customers/all'),
     axios.get('/api/tax-settings'),
     axios.get('/api/tables/all'),
     axios.get('/api/sales', { params: { status: 'draft', per_page: 50 } }),
+    axios.get('/api/settings/restaurant').catch(() => ({ data: {} })),
   ])
   products.value        = p.data.data
   customers.value       = c.data
   taxes.value           = t.data.filter(x => x.is_active)
   availableTables.value = tb.data
   draftBills.value      = drafts.data.data
+
+  branchServiceChargeRate.value  = settings.data?.service_charge_rate ?? 0
+  form.service_charge_rate       = branchServiceChargeRate.value
 
   // Default to Liquor category if it exists
   const hasLiquor = products.value.some(p => p.category?.name === 'Liquor')

@@ -117,7 +117,7 @@
               <th class="table-th w-20">Capacity</th>
               <th class="table-th w-32">Status</th>
               <th class="table-th">Notes</th>
-              <th class="table-th w-28 text-center">Actions</th>
+              <th class="table-th w-36 text-center">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -171,6 +171,11 @@
                       class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
                       <PencilSquareIcon class="w-3.5 h-3.5" />
                     </button>
+                    <button @click.stop="openQr(t)"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200"
+                      title="Print QR Code">
+                      <QrCodeIcon class="w-3.5 h-3.5" />
+                    </button>
                     <button @click.stop="deleteTable(t)"
                       class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
                       <TrashIcon class="w-3.5 h-3.5" />
@@ -213,17 +218,48 @@
     </div>
 
     <ConfirmModal :show="!!confirmDelete" :message="confirmMessage" @confirm="doDelete" @cancel="confirmDelete = null" />
+
+    <!-- QR Code Modal -->
+    <Teleport to="body">
+      <div v-if="qrModal.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click.self="qrModal.show = false">
+        <div class="bg-white rounded-2xl shadow-2xl w-80 max-w-[90vw] overflow-hidden">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 class="font-bold text-gray-900">Table {{ qrModal.tableNumber }} — QR Code</h3>
+            <button @click="qrModal.show = false" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+
+          <!-- QR canvas -->
+          <div class="qr-print-area flex flex-col items-center py-8 gap-3 bg-white">
+            <canvas ref="qrCanvas" class="w-48 h-48"></canvas>
+            <p class="text-lg font-black text-gray-900 tracking-widest">Table {{ qrModal.tableNumber }}</p>
+            <p class="text-xs text-gray-400 text-center px-6">Scan to view menu &amp; order</p>
+          </div>
+
+          <!-- Actions -->
+          <div class="px-5 py-4 border-t border-gray-100 flex gap-2">
+            <button @click="printQr" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm transition-colors">
+              🖨️ Print QR
+            </button>
+            <button @click="qrModal.show = false" class="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 font-medium">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, nextTick } from 'vue'
 import axios from 'axios'
+import QRCode from 'qrcode'
 import {
   PlusIcon, TrashIcon, MagnifyingGlassIcon,
   CheckCircleIcon, ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon,
   UserIcon, UserPlusIcon, CalendarDaysIcon, PencilSquareIcon,
-  TableCellsIcon,
+  TableCellsIcon, QrCodeIcon,
 } from '@heroicons/vue/24/outline'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
@@ -326,6 +362,23 @@ async function doDelete() {
   }
 }
 
+// QR code
+const qrCanvas  = ref(null)
+const qrModal   = reactive({ show: false, tableNumber: '', branchId: null })
+
+async function openQr(table) {
+  qrModal.tableNumber = table.table_number
+  qrModal.branchId    = table.branch_id
+  qrModal.show        = true
+  await nextTick()
+  const url = `${window.location.origin}/menu/${table.table_number}?b=${table.branch_id}`
+  await QRCode.toCanvas(qrCanvas.value, url, { width: 192, margin: 1, color: { dark: '#000000', light: '#ffffff' } })
+}
+
+function printQr() {
+  window.print()
+}
+
 const availableCount = computed(() => (tables.value.data ?? []).filter(t => t.status === 'available').length)
 const occupiedCount = computed(() => (tables.value.data ?? []).filter(t => t.status === 'occupied').length)
 const reservedCount = computed(() => (tables.value.data ?? []).filter(t => t.status === 'reserved').length)
@@ -341,3 +394,15 @@ function statusBadge(status) {
 
 onMounted(fetchData)
 </script>
+
+<style>
+@media print {
+  body * { visibility: hidden; }
+  .qr-print-area, .qr-print-area * { visibility: visible; }
+  .qr-print-area {
+    position: fixed; top: 0; left: 0; width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px; background: white;
+  }
+}
+</style>

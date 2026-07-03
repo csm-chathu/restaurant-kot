@@ -25,6 +25,8 @@ use App\Http\Controllers\Api\SupplierReturnController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TaxSettingController;
 use App\Http\Controllers\Api\CashierShiftController;
+use App\Http\Controllers\Api\PublicMenuController;
+use App\Http\Controllers\Api\PublicOrderController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
@@ -42,6 +44,13 @@ Route::get('/public/settings', function () {
         'name'     => $branch?->name ?? config('app.name'),
         'logo_url' => $branch?->logo_url,
     ]);
+});
+
+// ── Public self-order (no auth, rate-limited) ──────────────────────────────
+Route::middleware('throttle:60,1')->prefix('public')->group(function () {
+    Route::get('/table/{tableNumber}', [PublicMenuController::class, 'table']);
+    Route::get('/menu',                [PublicMenuController::class, 'menu']);
+    Route::post('/orders',             [PublicOrderController::class, 'store']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

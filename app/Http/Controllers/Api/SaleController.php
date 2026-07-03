@@ -582,6 +582,7 @@ class SaleController extends Controller
 
             $sale->update([
                 'customer_id'         => $data['customer_id'] ?? null,
+                'user_id'             => $isCompleting ? $request->user()->id : ($sale->user_id ?? $request->user()->id),
                 'subtotal'            => $subtotal,
                 'discount'            => $discount,
                 'tax'                 => $tax,

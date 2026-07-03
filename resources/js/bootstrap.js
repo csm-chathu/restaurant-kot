@@ -20,14 +20,18 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 if (import.meta.env.VITE_PUSHER_APP_KEY) {
+    const pusherCluster = import.meta.env.VITE_PUSHER_APP_CLUSTER || 'mt1'
+    const pusherHost    = import.meta.env.VITE_PUSHER_HOST || `ws-${pusherCluster}.pusher.com`
+    const forceTLS      = (import.meta.env.VITE_PUSHER_SCHEME || 'https') === 'https'
+
     window.Echo = new Echo({
-        broadcaster: 'pusher',
-        key: import.meta.env.VITE_PUSHER_APP_KEY,
-        cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER ?? 'mt1',
-        wsHost: import.meta.env.VITE_PUSHER_HOST || `ws-${import.meta.env.VITE_PUSHER_APP_CLUSTER ?? 'mt1'}.pusher.com`,
-        wsPort: import.meta.env.VITE_PUSHER_PORT ?? 80,
-        wssPort: import.meta.env.VITE_PUSHER_PORT ?? 443,
-        forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
+        broadcaster:       'pusher',
+        key:               import.meta.env.VITE_PUSHER_APP_KEY,
+        cluster:           pusherCluster,
+        wsHost:            pusherHost,
+        wsPort:            forceTLS ? 443 : 80,
+        wssPort:           443,
+        forceTLS:          forceTLS,
         enabledTransports: ['ws', 'wss'],
-    });
+    })
 }

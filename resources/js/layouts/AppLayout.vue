@@ -239,8 +239,8 @@ function openOrder(n) {
 function handleClickOutsideBell(e) {
   if (bellRef.value && !bellRef.value.contains(e.target)) {
     if (showNotifPanel.value) {
-      // mark all read when closing
       notifications.value.forEach(n => { n.read = true })
+      axios.post('/api/notifications/read').catch(() => {})
     }
     showNotifPanel.value = false
   }
@@ -272,6 +272,58 @@ function unsubscribeFromOrders() {
   if (!window.Echo || !echoChannel) return
   window.Echo.leaveChannel(`branch.${auth.user?.branch_id}.orders`)
   echoChannel = null
+}
+
+async function loadNotifications() {
+  try {
+    const { data } = await axios.get('/api/notifications')
+    // Merge DB records — put them behind any real-time ones already received
+    const existingIds = new Set(notifications.value.map(n => n.invoice_number))
+    const fresh = data
+      .filter(n => !existingIds.has(n.invoice_number))
+      .map(n => ({
+        id:              ++notifId,
+        read:            !!n.read_at,
+        sale_id:         n.sale_id,
+        invoice_number:  n.invoice_number,
+        table_number:    n.table_number,
+        total:           n.total,
+        items_count:     n.items_count,
+        at:              new Date(n.created_at).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' }),
+      }))
+    notifications.value = [...notifications.value, ...fresh]
+  } catch { /* silent */ }
+}
+
+async function registerWebPush() {
+  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  if (!vapidKey || !('serviceWorker' in navigator) || !('PushManager' in window)) return
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js')
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+
+    const existing = await reg.pushManager.getSubscription()
+    const sub = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    })
+
+    await axios.post('/api/push/subscribe', {
+      endpoint:   sub.endpoint,
+      public_key: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))),
+      auth_token: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))),
+    })
+  } catch (e) {
+    console.warn('[WebPush] registration failed', e)
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw     = atob(base64)
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
 watch(() => route.name, (name) => {
@@ -418,7 +470,9 @@ onMounted(async () => {
       }
     }
   }
+  await loadNotifications()
   subscribeToOrders()
+  registerWebPush()
   document.addEventListener('click', handleClickOutsideBell)
 })
 

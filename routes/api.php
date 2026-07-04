@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\SupplierReturnController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TaxSettingController;
 use App\Http\Controllers\Api\CashierShiftController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PublicMenuController;
 use App\Http\Controllers\Api\PublicOrderController;
 use App\Http\Controllers\Api\UserController;
@@ -132,6 +133,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/trial-balance',       [AccountingController::class, 'trialBalance']);
     Route::get('/reports/profit-loss',         [AccountingController::class, 'profitLoss']);
     Route::get('/reports/balance-sheet',       [AccountingController::class, 'balanceSheet']);
+
+    // Notifications
+    Route::get('/notifications',           [NotificationController::class, 'index']);
+    Route::post('/notifications/read',     [NotificationController::class, 'markRead']);
+    Route::post('/push/subscribe',         [NotificationController::class, 'subscribe']);
+    Route::post('/push/unsubscribe',       [NotificationController::class, 'unsubscribe']);
 
     // Audit log
     Route::get('/audit-logs', [AuditLogController::class, 'index']);

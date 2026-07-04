@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\TaxSettingController;
 use App\Http\Controllers\Api\CashierShiftController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\UberWebhookController;
 use App\Http\Controllers\Api\PublicMenuController;
 use App\Http\Controllers\Api\PublicOrderController;
 use App\Http\Controllers\Api\UserController;
@@ -46,6 +47,12 @@ Route::get('/public/settings', function () {
         'logo_url' => $branch?->logo_url,
     ]);
 });
+
+// ── Uber Eats webhook (no auth, rate-limited) ──────────────────────────────
+Route::middleware('throttle:120,1')->post(
+    '/webhook/uber/{branchId}',
+    [UberWebhookController::class, 'receive']
+);
 
 // ── Public self-order (no auth, rate-limited) ──────────────────────────────
 Route::middleware('throttle:60,1')->prefix('public')->group(function () {

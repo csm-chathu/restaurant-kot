@@ -39,4 +39,8 @@ return [
         'verify' => env('CLOUDINARY_VERIFY', true),
     ],
 
+    'uber' => [
+        'webhook_secret' => env('UBER_WEBHOOK_SECRET'),
+    ],
+
 ];
